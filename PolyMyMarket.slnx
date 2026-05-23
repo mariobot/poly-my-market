@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="PolyMyMarket.Models/PolyMyMarket.Models.csproj" Id="ddb92a05-e70f-47df-963d-e8cc3424a7f5" />
   <Project Path="PolyMyMarket.Web/PolyMyMarket.Web.csproj" />
 </Solution>

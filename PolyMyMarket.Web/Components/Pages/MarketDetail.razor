@@ -1,0 +1,321 @@
+@page "/market/{marketId:int}"
+@using PolyMyMarket.Models
+@using PolyMyMarket.Web.Services
+@inject MarketService MarketService
+@inject UserService UserService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>@(market?.Title ?? "Market") - PolyMyMarket</PageTitle>
+
+@if (market == null)
+{
+    <div class="container py-5">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading market...</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid py-4">
+        <!-- Market Header -->
+        <div class="row mb-4">
+            <div class="col">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/markets">Markets</a></li>
+                        <li class="breadcrumb-item active">@market.Category</li>
+                    </ol>
+                </nav>
+
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="badge bg-primary mb-2">@market.Category</span>
+                        <h1 class="display-6 fw-bold">@market.Title</h1>
+                        <p class="lead text-muted">@market.Description</p>
+                    </div>
+                    <div class="text-end">
+                        <div class="badge bg-@(market.Status == MarketStatus.Active ? "success" : "secondary") fs-6">
+                            @market.Status
+                        </div>
+                        <div class="small text-muted mt-2">
+                            Ends: @market.EndDate.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Left Column: Prices and Order Form -->
+            <div class="col-lg-8">
+                <!-- Current Prices -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">Current Prices</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="p-4 bg-success bg-opacity-10 rounded">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="text-success fw-bold mb-1">YES</div>
+                                            <div class="display-4 fw-bold">@((yesPrice * 100).ToString("F1"))¢</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="small text-muted">Pool</div>
+                                            <div class="fw-bold">@market.YesPool.ToString("F0")</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-4 bg-danger bg-opacity-10 rounded">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="text-danger fw-bold mb-1">NO</div>
+                                            <div class="display-4 fw-bold">@((noPrice * 100).ToString("F1"))¢</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="small text-muted">Pool</div>
+                                            <div class="fw-bold">@market.NoPool.ToString("F0")</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Form -->
+                @if (market.Status == MarketStatus.Active)
+                {
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title mb-4">Place Order</h5>
+
+                            @if (!string.IsNullOrEmpty(orderMessage))
+                            {
+                                <div class="alert alert-@(orderSuccess ? "success" : "danger") alert-dismissible fade show">
+                                    @orderMessage
+                                    <button type="button" class="btn-close" @onclick="ClearMessage"></button>
+                                </div>
+                            }
+
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Action</label>
+                                    <select class="form-select" @bind="selectedOrderType">
+                                        <option value="@OrderType.Buy">Buy</option>
+                                        <option value="@OrderType.Sell">Sell</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Outcome</label>
+                                    <select class="form-select" @bind="selectedOutcome">
+                                        <option value="@Outcome.Yes">Yes</option>
+                                        <option value="@Outcome.No">No</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Shares</label>
+                                    <input type="number" class="form-control" @bind="shares" min="1" step="1" />
+                                </div>
+                            </div>
+
+                            @if (shares > 0)
+                            {
+                                var estimatedCost = selectedOrderType == OrderType.Buy 
+                                    ? MarketService.CalculateBuyCost(market, selectedOutcome, shares)
+                                    : MarketService.CalculateSellProceeds(market, selectedOutcome, shares);
+
+                                <div class="alert alert-info mt-3">
+                                    <strong>Estimated @(selectedOrderType == OrderType.Buy ? "Cost" : "Proceeds"):</strong> 
+                                    $@estimatedCost.ToString("F2")
+                                </div>
+                            }
+
+                            <div class="d-grid mt-3">
+                                <button class="btn btn-primary btn-lg" @onclick="PlaceOrder" disabled="@isProcessing">
+                                    @if (isProcessing)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    @selectedOrderType @selectedOutcome Shares
+                                </button>
+                            </div>
+
+                            <div class="text-muted small mt-3">
+                                <strong>Current User Balance:</strong> $@currentUser.Balance.ToString("F2")
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Right Column: Recent Orders -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">Recent Orders</h5>
+
+                        @if (recentOrders == null || !recentOrders.Any())
+                        {
+                            <p class="text-muted text-center py-3">No orders yet</p>
+                        }
+                        else
+                        {
+                            <div class="order-list">
+                                @foreach (var order in recentOrders)
+                                {
+                                    <div class="order-item mb-3 pb-3 border-bottom">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <span class="badge bg-@(order.OrderType == OrderType.Buy ? "primary" : "warning")">
+                                                    @order.OrderType
+                                                </span>
+                                                <span class="badge bg-@(order.Outcome == Outcome.Yes ? "success" : "danger") ms-1">
+                                                    @order.Outcome
+                                                </span>
+                                            </div>
+                                            <span class="small text-muted">
+                                                @order.Timestamp.ToLocalTime().ToString("HH:mm:ss")
+                                            </span>
+                                        </div>
+                                        <div class="mt-2">
+                                            <strong>@order.Shares.ToString("F2")</strong> shares at 
+                                            <strong>@((order.Price * 100).ToString("F1"))¢</strong>
+                                        </div>
+                                        <div class="small text-muted">
+                                            Total: $@order.TotalCost.ToString("F2")
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .order-list {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .order-item:last-child {
+        border-bottom: none !important;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int MarketId { get; set; }
+
+    private Market? market;
+    private User currentUser = new User { Id = 1, Email = "demo@polymarket.com", Balance = 10000m };
+    private List<Order>? recentOrders;
+
+    private OrderType selectedOrderType = OrderType.Buy;
+    private Outcome selectedOutcome = Outcome.Yes;
+    private decimal shares = 10;
+
+    private bool isProcessing = false;
+    private bool orderSuccess = false;
+    private string orderMessage = string.Empty;
+
+    private decimal yesPrice;
+    private decimal noPrice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMarket();
+        await LoadCurrentUser();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (market?.Id != MarketId)
+        {
+            await LoadMarket();
+        }
+    }
+
+    private async Task LoadMarket()
+    {
+        market = await MarketService.GetMarketByIdAsync(MarketId);
+
+        if (market != null)
+        {
+            (yesPrice, noPrice) = MarketService.GetCurrentPrices(market);
+            await LoadRecentOrders();
+        }
+    }
+
+    private async Task LoadCurrentUser()
+    {
+        // For demo purposes, using hardcoded user ID 1
+        var user = await UserService.GetUserByIdAsync(1);
+        if (user != null)
+        {
+            currentUser = user;
+        }
+    }
+
+    private async Task LoadRecentOrders()
+    {
+        if (market != null)
+        {
+            recentOrders = await MarketService.GetRecentOrdersAsync(market.Id, 15);
+        }
+    }
+
+    private async Task PlaceOrder()
+    {
+        if (market == null || shares <= 0)
+            return;
+
+        isProcessing = true;
+        ClearMessage();
+
+        try
+        {
+            var result = selectedOrderType == OrderType.Buy
+                ? await MarketService.PlaceBuyOrderAsync(market.Id, currentUser.Id, selectedOutcome, shares)
+                : await MarketService.PlaceSellOrderAsync(market.Id, currentUser.Id, selectedOutcome, shares);
+
+            orderSuccess = result.success;
+            orderMessage = result.message;
+
+            if (result.success)
+            {
+                // Reload data
+                await LoadMarket();
+                await LoadCurrentUser();
+
+                // Reset form
+                shares = 10;
+            }
+        }
+        catch (Exception ex)
+        {
+            orderSuccess = false;
+            orderMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void ClearMessage()
+    {
+        orderMessage = string.Empty;
+    }
+}

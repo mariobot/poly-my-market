@@ -1,0 +1,122 @@
+@page "/markets"
+@using PolyMyMarket.Models
+@using PolyMyMarket.Web.Services
+@inject MarketService MarketService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Markets - PolyMyMarket</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-5 fw-bold">Prediction Markets</h1>
+            <p class="lead text-muted">Browse and trade on the outcomes of future events</p>
+        </div>
+    </div>
+
+    @if (markets == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading markets...</p>
+        </div>
+    }
+    else if (!markets.Any())
+    {
+        <div class="alert alert-info">
+            <h4 class="alert-heading">No Active Markets</h4>
+            <p>There are currently no active markets. Check back soon!</p>
+        </div>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            @foreach (var market in markets)
+            {
+                var (yesPrice, noPrice) = MarketService.GetCurrentPrices(market);
+                var daysLeft = (market.EndDate - DateTime.UtcNow).Days;
+
+                <div class="col">
+                    <div class="card h-100 shadow-sm hover-lift" @onclick="() => NavigateToMarket(market.Id)" style="cursor: pointer;">
+                        <div class="card-body d-flex flex-column">
+                            <div class="mb-2">
+                                <span class="badge bg-primary">@market.Category</span>
+                                <span class="badge bg-secondary ms-1">
+                                    @if (daysLeft > 0)
+                                    {
+                                        <span>@daysLeft days left</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Ended</span>
+                                    }
+                                </span>
+                            </div>
+
+                            <h5 class="card-title fw-bold mb-3">@market.Title</h5>
+
+                            <p class="card-text text-muted small flex-grow-1">
+                                @(market.Description.Length > 150 ? market.Description.Substring(0, 150) + "..." : market.Description)
+                            </p>
+
+                            <div class="mt-3">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="p-3 bg-success bg-opacity-10 rounded">
+                                            <div class="text-success fw-bold small">YES</div>
+                                            <div class="h4 mb-0 fw-bold">@((yesPrice * 100).ToString("F1"))¢</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-3 bg-danger bg-opacity-10 rounded">
+                                            <div class="text-danger fw-bold small">NO</div>
+                                            <div class="h4 mb-0 fw-bold">@((noPrice * 100).ToString("F1"))¢</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0">
+                            <small class="text-muted">
+                                <i class="bi bi-clock"></i> Ends @market.EndDate.ToLocalTime().ToString("MMM dd, yyyy")
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .hover-lift {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+
+    .hover-lift:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+</style>
+
+@code {
+    private List<Market>? markets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMarkets();
+    }
+
+    private async Task LoadMarkets()
+    {
+        markets = await MarketService.GetActiveMarketsAsync();
+    }
+
+    private void NavigateToMarket(int marketId)
+    {
+        Navigation.NavigateTo($"/market/{marketId}");
+    }
+}

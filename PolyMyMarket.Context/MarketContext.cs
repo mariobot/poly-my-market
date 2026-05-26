@@ -112,6 +112,9 @@ public class MarketContext : DbContext
 
     private void SeedData(ModelBuilder modelBuilder)
     {
+        // Use a fixed date for seed data to avoid migration conflicts
+        var seedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
         // Seed test user
         modelBuilder.Entity<User>().HasData(
             new User
@@ -120,7 +123,7 @@ public class MarketContext : DbContext
                 Name = "Demo User",
                 Email = "demo@polymarket.com",
                 Balance = 10000m,
-                CreatedDate = DateTime.UtcNow
+                CreatedDate = seedDate
             }
         );
 
@@ -132,7 +135,7 @@ public class MarketContext : DbContext
                 Title = "Will Bitcoin reach $100,000 by end of 2025?",
                 Description = "This market resolves to Yes if Bitcoin (BTC) reaches or exceeds $100,000 USD at any point before December 31, 2025 23:59:59 UTC. Otherwise resolves to No.",
                 Category = "Cryptocurrency",
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = seedDate,
                 EndDate = new DateTime(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc),
                 Status = MarketStatus.Active,
                 InitialLiquidity = 1000m,
@@ -145,7 +148,7 @@ public class MarketContext : DbContext
                 Title = "Will AI pass the Turing Test in 2025?",
                 Description = "This market resolves to Yes if a credible AI system is widely recognized as passing the Turing Test by December 31, 2025. The determination will be based on mainstream media and academic consensus.",
                 Category = "Technology",
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = seedDate,
                 EndDate = new DateTime(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc),
                 Status = MarketStatus.Active,
                 InitialLiquidity = 1000m,
@@ -158,7 +161,7 @@ public class MarketContext : DbContext
                 Title = "Will there be a recession in 2025?",
                 Description = "This market resolves to Yes if the United States enters a recession (defined as two consecutive quarters of negative GDP growth) at any point during 2025.",
                 Category = "Economics",
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = seedDate,
                 EndDate = new DateTime(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc),
                 Status = MarketStatus.Active,
                 InitialLiquidity = 1000m,
@@ -171,7 +174,7 @@ public class MarketContext : DbContext
                 Title = "Will SpaceX land humans on Mars by 2030?",
                 Description = "This market resolves to Yes if SpaceX successfully lands human astronauts on the surface of Mars before December 31, 2030.",
                 Category = "Space",
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = seedDate,
                 EndDate = new DateTime(2030, 12, 31, 23, 59, 59, DateTimeKind.Utc),
                 Status = MarketStatus.Active,
                 InitialLiquidity = 1000m,
@@ -184,7 +187,7 @@ public class MarketContext : DbContext
                 Title = "Will a major tech company announce a quantum computer breakthrough in 2025?",
                 Description = "This market resolves to Yes if Google, IBM, Microsoft, or another major tech company announces a significant quantum computing breakthrough in 2025 that is covered by mainstream tech media.",
                 Category = "Technology",
-                CreatedDate = DateTime.UtcNow,
+                CreatedDate = seedDate,
                 EndDate = new DateTime(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc),
                 Status = MarketStatus.Active,
                 InitialLiquidity = 1000m,

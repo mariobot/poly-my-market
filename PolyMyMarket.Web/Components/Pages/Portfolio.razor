@@ -1,0 +1,269 @@
+@page "/portfolio"
+@using PolyMyMarket.Models
+@using PolyMyMarket.Web.Services
+@inject UserService UserService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Portfolio - PolyMyMarket</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-5 fw-bold">My Portfolio</h1>
+            <p class="lead text-muted">Track your positions and performance</p>
+        </div>
+    </div>
+
+    @if (statistics == null || positions == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading portfolio...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Statistics Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Balance</h6>
+                        <h3 class="card-title fw-bold mb-0">${statistics.Balance:F2}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Portfolio Value</h6>
+                        <h3 class="card-title fw-bold mb-0">${statistics.CurrentPortfolioValue:F2}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Total Invested</h6>
+                        <h3 class="card-title fw-bold mb-0">${statistics.TotalInvested:F2}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card shadow-sm border-@(statistics.TotalProfitLoss >= 0 ? "success" : "danger")">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Profit/Loss</h6>
+                        <h3 class="card-title fw-bold mb-0 text-@(statistics.TotalProfitLoss >= 0 ? "success" : "danger")">
+                            @(statistics.TotalProfitLoss >= 0 ? "+" : "")$@statistics.TotalProfitLoss.ToString("F2")
+                        </h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Stats -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="display-6 fw-bold text-primary">@statistics.ActivePositions</div>
+                        <div class="text-muted">Active Positions</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="display-6 fw-bold text-info">@statistics.TotalOrders</div>
+                        <div class="text-muted">Total Orders</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="h4 fw-bold text-secondary">@statistics.MemberSince.ToString("MMM yyyy")</div>
+                        <div class="text-muted">Member Since</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Positions Table -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-4">Active Positions</h5>
+
+                @if (!positions.Any())
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox display-1 text-muted"></i>
+                        <h4 class="mt-3">No Active Positions</h4>
+                        <p class="text-muted">Start trading to see your positions here</p>
+                        <a href="/markets" class="btn btn-primary">Browse Markets</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Market</th>
+                                    <th class="text-center">Yes Shares</th>
+                                    <th class="text-center">No Shares</th>
+                                    <th class="text-end">Invested</th>
+                                    <th class="text-end">Current Value</th>
+                                    <th class="text-end">P&L</th>
+                                    <th class="text-end">P&L %</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var position in positions)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="fw-bold">@position.Market.Title</div>
+                                            <small class="text-muted">
+                                                <span class="badge bg-secondary">@position.Market.Category</span>
+                                            </small>
+                                        </td>
+                                        <td class="text-center">
+                                            @if (position.Position.YesShares > 0)
+                                            {
+                                                <div>
+                                                    <div class="fw-bold">@position.Position.YesShares.ToString("F2")</div>
+                                                    <small class="text-muted">@((position.CurrentYesPrice * 100).ToString("F1"))¢</small>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            @if (position.Position.NoShares > 0)
+                                            {
+                                                <div>
+                                                    <div class="fw-bold">@position.Position.NoShares.ToString("F2")</div>
+                                                    <small class="text-muted">@((position.CurrentNoPrice * 100).ToString("F1"))¢</small>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            $@position.Position.TotalInvested.ToString("F2")
+                                        </td>
+                                        <td class="text-end fw-bold">
+                                            $@position.CurrentValue.ToString("F2")
+                                        </td>
+                                        <td class="text-end fw-bold text-@(position.ProfitLoss >= 0 ? "success" : "danger")">
+                                            @(position.ProfitLoss >= 0 ? "+" : "")$@position.ProfitLoss.ToString("F2")
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="badge bg-@(position.ProfitLossPercent >= 0 ? "success" : "danger")">
+                                                @(position.ProfitLossPercent >= 0 ? "+" : "")@position.ProfitLossPercent.ToString("F1")%
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => NavigateToMarket(position.Market.Id)">
+                                                Trade
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Recent Orders -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-body">
+                <h5 class="card-title mb-4">Recent Orders</h5>
+
+                @if (recentOrders == null || !recentOrders.Any())
+                {
+                    <p class="text-muted text-center py-3">No orders yet</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Market</th>
+                                    <th>Type</th>
+                                    <th>Outcome</th>
+                                    <th class="text-end">Shares</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var order in recentOrders)
+                                {
+                                    <tr>
+                                        <td>
+                                            <small>@order.Timestamp.ToLocalTime().ToString("MMM dd, HH:mm")</small>
+                                        </td>
+                                        <td>
+                                            <small>@order.Market.Title.Substring(0, Math.Min(50, order.Market.Title.Length))...</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-@(order.OrderType == OrderType.Buy ? "primary" : "warning")">
+                                                @order.OrderType
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-@(order.Outcome == Outcome.Yes ? "success" : "danger")">
+                                                @order.Outcome
+                                            </span>
+                                        </td>
+                                        <td class="text-end">@order.Shares.ToString("F2")</td>
+                                        <td class="text-end">@((order.Price * 100).ToString("F1"))¢</td>
+                                        <td class="text-end fw-bold">$@order.TotalCost.ToString("F2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private UserStatistics? statistics;
+    private List<PositionViewModel>? positions;
+    private List<Order>? recentOrders;
+    private int currentUserId = 1; // Demo user
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPortfolio();
+    }
+
+    private async Task LoadPortfolio()
+    {
+        statistics = await UserService.GetUserStatisticsAsync(currentUserId);
+        positions = await UserService.GetUserPositionsAsync(currentUserId);
+        recentOrders = await UserService.GetUserOrdersAsync(currentUserId, count: 20);
+    }
+
+    private void NavigateToMarket(int marketId)
+    {
+        Navigation.NavigateTo($"/market/{marketId}");
+    }
+}

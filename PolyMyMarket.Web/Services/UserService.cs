@@ -1,0 +1,149 @@
+using Microsoft.EntityFrameworkCore;
+using PolyMyMarket.Context;
+using PolyMyMarket.Models;
+
+namespace PolyMyMarket.Web.Services;
+
+public class UserService
+{
+    private readonly MarketContext _context;
+    private readonly MarketService _marketService;
+
+    public UserService(MarketContext context, MarketService marketService)
+    {
+        _context = context;
+        _marketService = marketService;
+    }
+
+    // Get or create user by email
+    public async Task<User> GetOrCreateUserAsync(string email, string name)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+        if (user == null)
+        {
+            user = new User
+            {
+                Email = email,
+                Name = name,
+                Balance = 10000m, // Starting balance
+                CreatedDate = DateTime.UtcNow
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+        }
+
+        return user;
+    }
+
+    // Get user by ID
+    public async Task<User?> GetUserByIdAsync(int userId)
+    {
+        return await _context.Users.FindAsync(userId);
+    }
+
+    // Get user positions with current values
+    public async Task<List<PositionViewModel>> GetUserPositionsAsync(int userId)
+    {
+        var positions = await _context.Positions
+            .Where(p => p.UserId == userId)
+            .Include(p => p.Market)
+            .ToListAsync();
+
+        var positionViewModels = new List<PositionViewModel>();
+
+        foreach (var position in positions)
+        {
+            // Only show positions with shares
+            if (position.YesShares == 0 && position.NoShares == 0)
+                continue;
+
+            var (yesPrice, noPrice) = _marketService.GetCurrentPrices(position.Market);
+
+            var viewModel = new PositionViewModel
+            {
+                Position = position,
+                Market = position.Market,
+                CurrentYesPrice = yesPrice,
+                CurrentNoPrice = noPrice,
+                CurrentValue = position.CalculateCurrentValue(yesPrice, noPrice),
+                ProfitLoss = position.CalculateProfitLoss(yesPrice, noPrice)
+            };
+
+            positionViewModels.Add(viewModel);
+        }
+
+        return positionViewModels.OrderByDescending(p => p.Position.LastUpdated).ToList();
+    }
+
+    // Get user order history
+    public async Task<List<Order>> GetUserOrdersAsync(int userId, int? marketId = null, int count = 50)
+    {
+        IQueryable<Order> query = _context.Orders
+            .Where(o => o.UserId == userId)
+            .Include(o => o.Market);
+
+        if (marketId.HasValue)
+        {
+            query = query.Where(o => o.MarketId == marketId.Value);
+        }
+
+        return await query
+            .OrderByDescending(o => o.Timestamp)
+            .Take(count)
+            .ToListAsync();
+    }
+
+    // Get user statistics
+    public async Task<UserStatistics> GetUserStatisticsAsync(int userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            return new UserStatistics();
+
+        var positions = await GetUserPositionsAsync(userId);
+        var orders = await GetUserOrdersAsync(userId);
+
+        decimal totalInvested = positions.Sum(p => p.Position.TotalInvested);
+        decimal currentValue = positions.Sum(p => p.CurrentValue);
+        decimal totalProfitLoss = currentValue - totalInvested;
+
+        return new UserStatistics
+        {
+            Balance = user.Balance,
+            TotalInvested = totalInvested,
+            CurrentPortfolioValue = currentValue,
+            TotalProfitLoss = totalProfitLoss,
+            TotalOrders = orders.Count,
+            ActivePositions = positions.Count,
+            MemberSince = user.CreatedDate
+        };
+    }
+}
+
+// View model for positions with calculated values
+public class PositionViewModel
+{
+    public Position Position { get; set; } = null!;
+    public Market Market { get; set; } = null!;
+    public decimal CurrentYesPrice { get; set; }
+    public decimal CurrentNoPrice { get; set; }
+    public decimal CurrentValue { get; set; }
+    public decimal ProfitLoss { get; set; }
+    public decimal ProfitLossPercent => Position.TotalInvested > 0 
+        ? (ProfitLoss / Position.TotalInvested) * 100 
+        : 0;
+}
+
+// User statistics model
+public class UserStatistics
+{
+    public decimal Balance { get; set; }
+    public decimal TotalInvested { get; set; }
+    public decimal CurrentPortfolioValue { get; set; }
+    public decimal TotalProfitLoss { get; set; }
+    public int TotalOrders { get; set; }
+    public int ActivePositions { get; set; }
+    public DateTime MemberSince { get; set; }
+}

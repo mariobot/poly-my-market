@@ -31,31 +31,46 @@
             <div class="col-md-3">
                 <div class="card shadow-sm">
                     <div class="card-body">
-                        <h6 class="card-subtitle mb-2 text-muted">Balance</h6>
-                        <h3 class="card-title fw-bold mb-0">${statistics.Balance:F2}</h3>
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            <i class="bi bi-wallet2 me-1"></i>
+                            Available Balance
+                        </h6>
+                        <h3 class="card-title fw-bold mb-0">$@statistics.Balance.ToString("F2")</h3>
+                        <small class="text-muted">Cash available to trade</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="card shadow-sm">
                     <div class="card-body">
-                        <h6 class="card-subtitle mb-2 text-muted">Portfolio Value</h6>
-                        <h3 class="card-title fw-bold mb-0">${statistics.CurrentPortfolioValue:F2}</h3>
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            <i class="bi bi-graph-up me-1"></i>
+                            Current Portfolio Value
+                        </h6>
+                        <h3 class="card-title fw-bold mb-0">$@statistics.CurrentPortfolioValue.ToString("F2")</h3>
+                        <small class="text-muted">Current value of positions</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="card shadow-sm">
                     <div class="card-body">
-                        <h6 class="card-subtitle mb-2 text-muted">Total Invested</h6>
-                        <h3 class="card-title fw-bold mb-0">${statistics.TotalInvested:F2}</h3>
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            <i class="bi bi-cash-stack me-1"></i>
+                            Total Amount Invested
+                        </h6>
+                        <h3 class="card-title fw-bold mb-0">$@statistics.TotalInvested.ToString("F2")</h3>
+                        <small class="text-muted">Total spent on positions</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="card shadow-sm border-@(statistics.TotalProfitLoss >= 0 ? "success" : "danger")">
                     <div class="card-body">
-                        <h6 class="card-subtitle mb-2 text-muted">Profit/Loss</h6>
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            <i class="bi bi-@(statistics.TotalProfitLoss >= 0 ? "arrow-up-circle" : "arrow-down-circle") me-1"></i>
+                            Total Profit/Loss
+                        </h6>
                         <h3 class="card-title fw-bold mb-0 text-@(statistics.TotalProfitLoss >= 0 ? "success" : "danger")">
                             @(statistics.TotalProfitLoss >= 0 ? "+" : "")$@statistics.TotalProfitLoss.ToString("F2")
                         </h3>

@@ -330,4 +330,39 @@ public class MarketService
 
         return (true, $"Market resolved to {(outcome ? "Yes" : "No")}. Payouts distributed.");
     }
+
+    // Create a new market
+    public async Task<(bool success, string message, int marketId)> CreateMarketAsync(Market market)
+    {
+        try
+        {
+            // Validate market data
+            if (string.IsNullOrWhiteSpace(market.Title))
+                return (false, "Market title is required", 0);
+
+            if (string.IsNullOrWhiteSpace(market.Description))
+                return (false, "Market description is required", 0);
+
+            if (market.EndDate <= DateTime.UtcNow)
+                return (false, "End date must be in the future", 0);
+
+            if (market.InitialLiquidity < 100)
+                return (false, "Initial liquidity must be at least $100", 0);
+
+            // Ensure pools are balanced
+            market.YesPool = market.InitialLiquidity / 2;
+            market.NoPool = market.InitialLiquidity / 2;
+            market.Status = MarketStatus.Active;
+            market.CreatedDate = DateTime.UtcNow;
+
+            _context.Markets.Add(market);
+            await _context.SaveChangesAsync();
+
+            return (true, "Market created successfully", market.Id);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error creating market: {ex.Message}", 0);
+        }
+    }
 }

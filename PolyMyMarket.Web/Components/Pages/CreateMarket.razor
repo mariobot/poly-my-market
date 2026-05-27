@@ -1,0 +1,271 @@
+﻿@page "/create-market"
+@using PolyMyMarket.Models
+@using PolyMyMarket.Web.Services
+@using System.ComponentModel.DataAnnotations
+@inject MarketService MarketService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Create Market - PolyMyMarket</PageTitle>
+
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/markets">Markets</a></li>
+                    <li class="breadcrumb-item active">Create Market</li>
+                </ol>
+            </nav>
+            <h1 class="display-5 fw-bold">Create New Market</h1>
+            <p class="lead text-muted">Create a new prediction market for users to trade on</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <EditForm Model="@model" OnValidSubmit="@HandleValidSubmit">
+                        <DataAnnotationsValidator />
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show">
+                                @errorMessage
+                                <button type="button" class="btn-close" @onclick="ClearError"></button>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success alert-dismissible fade show">
+                                @successMessage
+                                <button type="button" class="btn-close" @onclick="ClearSuccess"></button>
+                            </div>
+                        }
+
+                        <!-- Title -->
+                        <div class="mb-3">
+                            <label for="title" class="form-label fw-bold">Market Title <span class="text-danger">*</span></label>
+                            <InputText id="title" class="form-control" @bind-Value="model.Title" placeholder="e.g., Will Bitcoin reach $100,000 by end of 2025?" />
+                            <ValidationMessage For="@(() => model.Title)" class="text-danger small" />
+                            <div class="form-text">Make it clear and specific. Users should understand what they're betting on.</div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label fw-bold">Description <span class="text-danger">*</span></label>
+                            <InputTextArea id="description" class="form-control" rows="4" @bind-Value="model.Description" 
+                                          placeholder="Describe the market resolution criteria. What conditions need to be met for Yes/No outcomes?" />
+                            <ValidationMessage For="@(() => model.Description)" class="text-danger small" />
+                            <div class="form-text">Explain clearly how and when this market will resolve.</div>
+                        </div>
+
+                        <!-- Category -->
+                        <div class="mb-3">
+                            <label for="category" class="form-label fw-bold">Category <span class="text-danger">*</span></label>
+                            <InputSelect id="category" class="form-select" @bind-Value="model.Category">
+                                <option value="">-- Select Category --</option>
+                                <option value="Cryptocurrency">Cryptocurrency</option>
+                                <option value="Technology">Technology</option>
+                                <option value="Economics">Economics</option>
+                                <option value="Politics">Politics</option>
+                                <option value="Sports">Sports</option>
+                                <option value="Entertainment">Entertainment</option>
+                                <option value="Science">Science</option>
+                                <option value="Space">Space</option>
+                                <option value="Other">Other</option>
+                            </InputSelect>
+                            <ValidationMessage For="@(() => model.Category)" class="text-danger small" />
+                        </div>
+
+                        <div class="row">
+                            <!-- End Date -->
+                            <div class="col-md-6 mb-3">
+                                <label for="endDate" class="form-label fw-bold">End Date <span class="text-danger">*</span></label>
+                                <InputDate id="endDate" class="form-control" @bind-Value="model.EndDate" />
+                                <ValidationMessage For="@(() => model.EndDate)" class="text-danger small" />
+                                <div class="form-text">Trading closes on this date</div>
+                            </div>
+
+                            <!-- Initial Liquidity -->
+                            <div class="col-md-6 mb-3">
+                                <label for="liquidity" class="form-label fw-bold">Initial Liquidity <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <InputNumber id="liquidity" class="form-control" @bind-Value="model.InitialLiquidity" />
+                                </div>
+                                <ValidationMessage For="@(() => model.InitialLiquidity)" class="text-danger small" />
+                                <div class="form-text">Minimum: $100. Higher liquidity = less price slippage</div>
+                            </div>
+                        </div>
+
+                        <!-- Market Preview -->
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">Market Preview</h6>
+                            <hr />
+                            <div class="mb-2">
+                                <strong>Initial Yes Price:</strong> 50¢ (50%)
+                            </div>
+                            <div class="mb-2">
+                                <strong>Initial No Price:</strong> 50¢ (50%)
+                            </div>
+                            <div>
+                                <strong>Yes Pool:</strong> $@((model.InitialLiquidity / 2).ToString("F2"))
+                                <span class="mx-2">|</span>
+                                <strong>No Pool:</strong> $@((model.InitialLiquidity / 2).ToString("F2"))
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" disabled="@isSubmitting">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Create Market
+                            </button>
+                            <a href="/markets" class="btn btn-outline-secondary btn-lg">Cancel</a>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guidelines Sidebar -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📋 Market Guidelines</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="fw-bold">Good Market Criteria:</h6>
+                    <ul class="small">
+                        <li>Clear, unambiguous resolution conditions</li>
+                        <li>Verifiable outcome from reliable sources</li>
+                        <li>Reasonable timeframe</li>
+                        <li>Binary Yes/No outcome</li>
+                        <li>Not offensive or inappropriate</li>
+                    </ul>
+
+                    <h6 class="fw-bold mt-3">Examples of Good Markets:</h6>
+                    <ul class="small">
+                        <li>"Will Bitcoin reach $100K by Dec 31, 2025?"</li>
+                        <li>"Will SpaceX launch Starship to orbit in 2025?"</li>
+                        <li>"Will unemployment rate exceed 5% in 2025?"</li>
+                    </ul>
+
+                    <h6 class="fw-bold mt-3">Avoid:</h6>
+                    <ul class="small">
+                        <li>Vague or subjective outcomes</li>
+                        <li>Markets that can't be verified</li>
+                        <li>Offensive or inappropriate content</li>
+                        <li>Markets that violate laws or regulations</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-body">
+                    <h6 class="fw-bold">💡 Pro Tips</h6>
+                    <ul class="small">
+                        <li>Set end dates 1-2 weeks before resolution date</li>
+                        <li>Higher liquidity attracts more traders</li>
+                        <li>Reference specific sources for resolution</li>
+                        <li>Consider time zones in your criteria</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CreateMarketModel model = new();
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        // Set default values
+        model.EndDate = DateTime.UtcNow.AddMonths(3).Date;
+        model.InitialLiquidity = 1000m;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+        ClearMessages();
+
+        try
+        {
+            // Create market object
+            var market = new Market
+            {
+                Title = model.Title,
+                Description = model.Description,
+                Category = model.Category,
+                EndDate = model.EndDate.ToUniversalTime(),
+                InitialLiquidity = model.InitialLiquidity,
+                YesPool = model.InitialLiquidity / 2,
+                NoPool = model.InitialLiquidity / 2,
+                Status = MarketStatus.Active,
+                CreatedDate = DateTime.UtcNow
+            };
+
+            var result = await MarketService.CreateMarketAsync(market);
+
+            if (result.success)
+            {
+                successMessage = "Market created successfully! Redirecting...";
+                await Task.Delay(1500);
+                Navigation.NavigateTo($"/market/{result.marketId}");
+            }
+            else
+            {
+                errorMessage = result.message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating market: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ClearMessages()
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+    }
+
+    private void ClearError() => errorMessage = string.Empty;
+    private void ClearSuccess() => successMessage = string.Empty;
+
+    public class CreateMarketModel
+    {
+        [Required(ErrorMessage = "Title is required")]
+        [StringLength(200, MinimumLength = 10, ErrorMessage = "Title must be between 10 and 200 characters")]
+        public string Title { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Description is required")]
+        [StringLength(2000, MinimumLength = 50, ErrorMessage = "Description must be between 50 and 2000 characters")]
+        public string Description { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Category is required")]
+        public string Category { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "End date is required")]
+        public DateTime EndDate { get; set; } = DateTime.UtcNow.AddMonths(3);
+
+        [Required(ErrorMessage = "Initial liquidity is required")]
+        [Range(100, 1000000, ErrorMessage = "Initial liquidity must be between $100 and $1,000,000")]
+        public decimal InitialLiquidity { get; set; } = 1000m;
+    }
+}

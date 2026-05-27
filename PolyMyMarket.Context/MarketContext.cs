@@ -11,8 +11,10 @@ public class MarketContext : DbContext
 
     // DbSet properties
     public DbSet<Market> Markets { get; set; }
+    public DbSet<MarketOutcome> MarketOutcomes { get; set; }
     public DbSet<Order> Orders { get; set; }
     public DbSet<Position> Positions { get; set; }
+    public DbSet<OutcomePosition> OutcomePositions { get; set; }
     public DbSet<User> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -30,6 +32,11 @@ public class MarketContext : DbContext
             entity.Property(m => m.YesPool).HasPrecision(18, 2);
             entity.Property(m => m.NoPool).HasPrecision(18, 2);
 
+            entity.HasMany(m => m.Outcomes)
+                .WithOne(o => o.Market)
+                .HasForeignKey(o => o.MarketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             entity.HasMany(m => m.Orders)
                 .WithOne(o => o.Market)
                 .HasForeignKey(o => o.MarketId)
@@ -39,6 +46,23 @@ public class MarketContext : DbContext
                 .WithOne(p => p.Market)
                 .HasForeignKey(p => p.MarketId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MarketOutcome configuration
+        modelBuilder.Entity<MarketOutcome>(entity =>
+        {
+            entity.HasKey(mo => mo.Id);
+            entity.Property(mo => mo.Name).IsRequired().HasMaxLength(100);
+            entity.Property(mo => mo.Description).HasMaxLength(500);
+            entity.Property(mo => mo.LiquidityPool).HasPrecision(18, 2);
+
+            entity.HasOne(mo => mo.Market)
+                .WithMany(m => m.Outcomes)
+                .HasForeignKey(mo => mo.MarketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(mo => mo.MarketId);
+            entity.HasIndex(mo => new { mo.MarketId, mo.DisplayOrder });
         });
 
         // Order configuration
@@ -57,8 +81,14 @@ public class MarketContext : DbContext
                 .WithMany(u => u.Orders)
                 .HasForeignKey(o => o.UserId);
 
+            entity.HasOne(o => o.MarketOutcome)
+                .WithMany(mo => mo.Orders)
+                .HasForeignKey(o => o.MarketOutcomeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             entity.HasIndex(o => o.MarketId);
             entity.HasIndex(o => o.UserId);
+            entity.HasIndex(o => o.MarketOutcomeId);
             entity.HasIndex(o => o.Timestamp);
         });
 
@@ -83,6 +113,28 @@ public class MarketContext : DbContext
 
             // Unique constraint: one position per user per market
             entity.HasIndex(p => new { p.UserId, p.MarketId }).IsUnique();
+        });
+
+        // OutcomePosition configuration
+        modelBuilder.Entity<OutcomePosition>(entity =>
+        {
+            entity.HasKey(op => op.Id);
+            entity.Property(op => op.Shares).HasPrecision(18, 4);
+            entity.Property(op => op.AveragePrice).HasPrecision(18, 4);
+            entity.Property(op => op.TotalInvested).HasPrecision(18, 2);
+
+            entity.HasOne(op => op.User)
+                .WithMany()
+                .HasForeignKey(op => op.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(op => op.MarketOutcome)
+                .WithMany(mo => mo.Positions)
+                .HasForeignKey(op => op.MarketOutcomeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Unique constraint: one position per user per outcome
+            entity.HasIndex(op => new { op.UserId, op.MarketOutcomeId }).IsUnique();
         });
 
         // User configuration
@@ -138,6 +190,7 @@ public class MarketContext : DbContext
                 CreatedDate = seedDate,
                 EndDate = new DateTime(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc),
                 Status = MarketStatus.Active,
+                MarketType = MarketType.Binary,
                 InitialLiquidity = 1000m,
                 YesPool = 500m,
                 NoPool = 500m
@@ -151,6 +204,7 @@ public class MarketContext : DbContext
                 CreatedDate = seedDate,
                 EndDate = new DateTime(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc),
                 Status = MarketStatus.Active,
+                MarketType = MarketType.Binary,
                 InitialLiquidity = 1000m,
                 YesPool = 500m,
                 NoPool = 500m
@@ -164,6 +218,7 @@ public class MarketContext : DbContext
                 CreatedDate = seedDate,
                 EndDate = new DateTime(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc),
                 Status = MarketStatus.Active,
+                MarketType = MarketType.Binary,
                 InitialLiquidity = 1000m,
                 YesPool = 500m,
                 NoPool = 500m
@@ -177,6 +232,7 @@ public class MarketContext : DbContext
                 CreatedDate = seedDate,
                 EndDate = new DateTime(2030, 12, 31, 23, 59, 59, DateTimeKind.Utc),
                 Status = MarketStatus.Active,
+                MarketType = MarketType.Binary,
                 InitialLiquidity = 1000m,
                 YesPool = 500m,
                 NoPool = 500m
@@ -190,9 +246,68 @@ public class MarketContext : DbContext
                 CreatedDate = seedDate,
                 EndDate = new DateTime(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc),
                 Status = MarketStatus.Active,
+                MarketType = MarketType.Binary,
                 InitialLiquidity = 1000m,
                 YesPool = 500m,
                 NoPool = 500m
+            },
+            new Market
+            {
+                Id = 7,
+                Title = "Who will win the 2028 US Presidential Election?",
+                Description = "This market will resolve to the candidate who wins the 2028 United States Presidential Election.",
+                Category = "Politics",
+                CreatedDate = seedDate,
+                EndDate = new DateTime(2028, 11, 5, 23, 59, 59, DateTimeKind.Utc),
+                Status = MarketStatus.Active,
+                MarketType = MarketType.MultiOutcome,
+                InitialLiquidity = 2000m,
+                YesPool = 0m,
+                NoPool = 0m
+            }
+        );
+
+        // Seed outcomes for multi-outcome market
+        modelBuilder.Entity<MarketOutcome>().HasData(
+            new MarketOutcome
+            {
+                Id = 1,
+                MarketId = 7,
+                Name = "Democratic Candidate",
+                Description = "The Democratic Party nominee wins",
+                DisplayOrder = 1,
+                LiquidityPool = 500m,
+                IsWinner = false
+            },
+            new MarketOutcome
+            {
+                Id = 2,
+                MarketId = 7,
+                Name = "Republican Candidate",
+                Description = "The Republican Party nominee wins",
+                DisplayOrder = 2,
+                LiquidityPool = 500m,
+                IsWinner = false
+            },
+            new MarketOutcome
+            {
+                Id = 3,
+                MarketId = 7,
+                Name = "Independent Candidate",
+                Description = "An independent or third-party candidate wins",
+                DisplayOrder = 3,
+                LiquidityPool = 500m,
+                IsWinner = false
+            },
+            new MarketOutcome
+            {
+                Id = 4,
+                MarketId = 7,
+                Name = "Other",
+                Description = "Any other outcome",
+                DisplayOrder = 4,
+                LiquidityPool = 500m,
+                IsWinner = false
             }
         );
     }

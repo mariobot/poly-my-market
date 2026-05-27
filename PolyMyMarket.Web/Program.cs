@@ -2,6 +2,7 @@ using PolyMyMarket.Web.Components;
 using Radzen;
 using Microsoft.EntityFrameworkCore;
 using PolyMyMarket.Context;
+using PolyMyMarket.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,20 +13,31 @@ builder.Services.AddRazorComponents()
 builder.Services.AddRadzenComponents();
 
 // Add database context
-builder.Services.AddDbContext<AppContext>(options =>
+builder.Services.AddDbContext<MarketContext>(options =>
 {
     // Configure your database provider here
     // For SQL Server:
-    // options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 
     // For SQLite (development):
     // options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
 
     // For InMemory (testing):
-    options.UseInMemoryDatabase("PolyMyMarketDb");
+    //options.UseInMemoryDatabase("PolyMyMarketDb");
 });
 
+// Add application services
+builder.Services.AddScoped<MarketService>();
+builder.Services.AddScoped<UserService>();
+
 var app = builder.Build();
+
+// Initialize database with seed data
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<MarketContext>();
+    dbContext.Database.EnsureCreated();
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

@@ -12,8 +12,16 @@ public class Order
     [Required]
     public int UserId { get; set; }
 
-    [Required]
-    public Outcome Outcome { get; set; }
+    /// <summary>
+    /// For multi-outcome markets: reference to specific MarketOutcome
+    /// For binary markets: can be null (uses legacy Outcome enum instead)
+    /// </summary>
+    public int? MarketOutcomeId { get; set; }
+
+    /// <summary>
+    /// Legacy binary outcome (Yes/No) - kept for backward compatibility
+    /// </summary>
+    public Outcome? Outcome { get; set; }
 
     [Required]
     [Range(0.01, double.MaxValue)]
@@ -33,4 +41,5 @@ public class Order
     // Navigation properties
     public Market Market { get; set; } = null!;
     public User User { get; set; } = null!;
+    public MarketOutcome? MarketOutcome { get; set; }
 }

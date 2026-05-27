@@ -26,15 +26,21 @@ public class Market
 
     public MarketStatus Status { get; set; } = MarketStatus.Active;
 
-    public bool? ResolvedOutcome { get; set; } // true = Yes, false = No, null = not resolved
+    /// <summary>
+    /// Type of market: Binary (Yes/No) or MultiOutcome (elections, etc.)
+    /// </summary>
+    public MarketType MarketType { get; set; } = MarketType.Binary;
+
+    public bool? ResolvedOutcome { get; set; } // true = Yes, false = No, null = not resolved (legacy for binary markets)
 
     public decimal InitialLiquidity { get; set; } = 1000m;
 
+    // Legacy binary market properties - kept for backward compatibility
     public decimal YesPool { get; set; } = 500m;
-
     public decimal NoPool { get; set; } = 500m;
 
     // Navigation properties
+    public ICollection<MarketOutcome> Outcomes { get; set; } = new List<MarketOutcome>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
-    public ICollection<Position> Positions { get; set; } = new List<Position>();
+    public ICollection<Position> Positions { get; set; } = new List<Position>(); // Legacy binary positions
 }

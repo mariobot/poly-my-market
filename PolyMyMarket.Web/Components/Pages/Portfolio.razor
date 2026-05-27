@@ -272,7 +272,7 @@
 
     private async Task LoadPortfolio()
     {
-        statistics = await UserService.GetUserStatisticsAsync(currentUserId);
+        statistics = await UserService.GetCombinedUserStatisticsAsync(currentUserId);
         positions = await UserService.GetUserPositionsAsync(currentUserId);
         recentOrders = await UserService.GetUserOrdersAsync(currentUserId, count: 20);
     }

@@ -1,38 +1,100 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">🎯 PolyMyMarket</a>
-    </div>
+@using Radzen
+@using Radzen.Blazor
+
+<div class="rz-sidebar">
+    <RadzenStack Gap="0">
+        <!-- Brand Header -->
+        <RadzenStack AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-p-4 rz-background-color-primary" Style="border-bottom: 1px solid var(--rz-border-color);">
+            <RadzenIcon Icon="account_balance" Style="font-size: 2rem; color: var(--rz-white);" />
+            <RadzenText TextStyle="TextStyle.H6" Style="color: var(--rz-white); font-weight: bold; margin: 0;">
+                PolyMyMarket
+            </RadzenText>
+            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-white); opacity: 0.9; margin: 0;">
+                Prediction Markets
+            </RadzenText>
+        </RadzenStack>
+
+        <!-- Navigation Menu -->
+        <RadzenPanelMenu Style="width: 100%;">
+            <RadzenPanelMenuItem Text="Home" Path="" Icon="home" />
+
+            <RadzenPanelMenuItem Text="Markets" Icon="show_chart">
+                <RadzenPanelMenuItem Text="Browse Markets" Path="markets" Icon="list" />
+                <RadzenPanelMenuItem Text="Create Market" Path="create-market" Icon="add_circle_outline" />
+            </RadzenPanelMenuItem>
+
+            <RadzenPanelMenuItem Text="Portfolio" Path="portfolio" Icon="account_balance_wallet" />
+
+            <RadzenPanelMenuItem Text="Categories" Icon="category">
+                <RadzenPanelMenuItem Text="Cryptocurrency" Path="markets?category=Cryptocurrency" Icon="currency_bitcoin" />
+                <RadzenPanelMenuItem Text="Technology" Path="markets?category=Technology" Icon="computer" />
+                <RadzenPanelMenuItem Text="Politics" Path="markets?category=Politics" Icon="how_to_vote" />
+                <RadzenPanelMenuItem Text="Sports" Path="markets?category=Sports" Icon="sports_soccer" />
+                <RadzenPanelMenuItem Text="Economics" Path="markets?category=Economics" Icon="trending_up" />
+                <RadzenPanelMenuItem Text="Science" Path="markets?category=Science" Icon="science" />
+            </RadzenPanelMenuItem>
+        </RadzenPanelMenu>
+
+        <!-- User Info Section -->
+        <RadzenStack Gap="0.5rem" class="rz-p-4 rz-mt-auto" Style="border-top: 1px solid var(--rz-border-color); background-color: var(--rz-base-100);">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="account_circle" Style="font-size: 2rem; color: var(--rz-primary);" />
+                <RadzenStack Gap="0">
+                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 600; margin: 0;">
+                        Demo User
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); margin: 0;">
+                        demo@polymarket.com
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenStack>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<style>
+    .rz-sidebar {
+        height: 100vh;
+        width: 280px;
+        display: flex;
+        flex-direction: column;
+        background-color: var(--rz-body-background-color);
+        border-right: 1px solid var(--rz-border-color);
+        overflow-y: auto;
+    }
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+    .rz-panel-menu {
+        border: none !important;
+    }
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="markets">
-                <span class="bi bi-graph-up-arrow" aria-hidden="true"></span> Markets
-            </NavLink>
-        </div>
+    .rz-panel-menu-item {
+        border-bottom: none !important;
+    }
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="create-market">
-                <span class="bi bi-plus-circle" aria-hidden="true"></span> Create Market
-            </NavLink>
-        </div>
+    .rz-panel-menu-item-content {
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+    }
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="portfolio">
-                <span class="bi bi-wallet2" aria-hidden="true"></span> Portfolio
-            </NavLink>
-        </div>
-    </nav>
-</div>
+    .rz-panel-menu-item-content:hover {
+        background-color: var(--rz-base-200);
+    }
 
+    .rz-panel-menu-item-wrapper.rz-state-active .rz-panel-menu-item-content {
+        background-color: var(--rz-primary-lighter);
+        color: var(--rz-primary);
+        font-weight: 600;
+    }
 
+    .rz-panel-menu-item-icon {
+        font-size: 1.25rem;
+        margin-right: 0.75rem;
+    }
 
+    @@media (max-width: 768px) {
+        .rz-sidebar {
+            width: 100%;
+            height: auto;
+        }
+    }
+</style>

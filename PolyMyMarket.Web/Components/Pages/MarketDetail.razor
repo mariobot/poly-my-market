@@ -35,6 +35,10 @@ else
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <span class="badge bg-primary mb-2">@market.Category</span>
+                        @if (market.MarketType == MarketType.MultiOutcome)
+                        {
+                            <span class="badge bg-info mb-2 ms-1">Multi-Outcome</span>
+                        }
                         <h1 class="display-6 fw-bold">@market.Title</h1>
                         <p class="lead text-muted">@market.Description</p>
                     </div>
@@ -57,36 +61,72 @@ else
                 <div class="card shadow-sm mb-4">
                     <div class="card-body">
                         <h5 class="card-title mb-4">Current Prices</h5>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="p-4 bg-success bg-opacity-10 rounded">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="text-success fw-bold mb-1">YES</div>
-                                            <div class="display-4 fw-bold">@((yesPrice * 100).ToString("F1"))¢</div>
+
+                        @if (market.MarketType == MarketType.Binary)
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="p-4 bg-success bg-opacity-10 rounded">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="text-success fw-bold mb-1">YES</div>
+                                                <div class="display-4 fw-bold">@((yesPrice * 100).ToString("F1"))¢</div>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="small text-muted">Pool</div>
+                                                <div class="fw-bold">@market.YesPool.ToString("F0")</div>
+                                            </div>
                                         </div>
-                                        <div class="text-end">
-                                            <div class="small text-muted">Pool</div>
-                                            <div class="fw-bold">@market.YesPool.ToString("F0")</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-4 bg-danger bg-opacity-10 rounded">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="text-danger fw-bold mb-1">NO</div>
+                                                <div class="display-4 fw-bold">@((noPrice * 100).ToString("F1"))¢</div>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="small text-muted">Pool</div>
+                                                <div class="fw-bold">@market.NoPool.ToString("F0")</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="p-4 bg-danger bg-opacity-10 rounded">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="text-danger fw-bold mb-1">NO</div>
-                                            <div class="display-4 fw-bold">@((noPrice * 100).ToString("F1"))¢</div>
-                                        </div>
-                                        <div class="text-end">
-                                            <div class="small text-muted">Pool</div>
-                                            <div class="fw-bold">@market.NoPool.ToString("F0")</div>
+                        }
+                        else
+                        {
+                            <div class="row g-3">
+                                @foreach (var outcome in market.Outcomes.OrderBy(o => o.DisplayOrder))
+                                {
+                                    var price = outcomePrices.GetValueOrDefault(outcome.Id, 0.5m);
+                                    var colorClass = outcome.DisplayOrder switch
+                                    {
+                                        1 => "primary",
+                                        2 => "success",
+                                        3 => "warning",
+                                        _ => "info"
+                                    };
+
+                                    <div class="col-md-6 col-lg-3">
+                                        <div class="p-3 bg-@colorClass bg-opacity-10 rounded border border-@colorClass">
+                                            <div class="text-@colorClass fw-bold small mb-1">@outcome.Name</div>
+                                            <div class="h3 mb-0 fw-bold">@((price * 100).ToString("F1"))¢</div>
+                                            <div class="small text-muted mt-2">
+                                                Pool: $@outcome.LiquidityPool.ToString("F0")
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(outcome.Description))
+                                            {
+                                                <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                                                    @outcome.Description
+                                                </div>
+                                            }
                                         </div>
                                     </div>
-                                </div>
+                                }
                             </div>
-                        </div>
+                        }
                     </div>
                 </div>
 
@@ -115,36 +155,66 @@ else
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Outcome</label>
-                                    <select class="form-select" @bind="selectedOutcome">
-                                        <option value="@Outcome.Yes">Yes</option>
-                                        <option value="@Outcome.No">No</option>
-                                    </select>
+                                    @if (market.MarketType == MarketType.Binary)
+                                    {
+                                        <select class="form-select" @bind="selectedOutcome">
+                                            <option value="@Outcome.Yes">Yes</option>
+                                            <option value="@Outcome.No">No</option>
+                                        </select>
+                                    }
+                                    else
+                                    {
+                                        <select class="form-select" @bind="selectedOutcomeId">
+                                            @foreach (var outcome in market.Outcomes.OrderBy(o => o.DisplayOrder))
+                                            {
+                                                <option value="@outcome.Id">@outcome.Name</option>
+                                            }
+                                        </select>
+                                    }
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Shares</label>
                                     <input type="number" class="form-control" @bind="shares" min="1" step="1" />
                                 </div>
-                            </div>
+                                    </div>
 
-                            @if (shares > 0)
-                            {
-                                var estimatedCost = selectedOrderType == OrderType.Buy 
-                                    ? MarketService.CalculateBuyCost(market, selectedOutcome, shares)
-                                    : MarketService.CalculateSellProceeds(market, selectedOutcome, shares);
-
-                                <div class="alert alert-info mt-3">
-                                    <strong>Estimated @(selectedOrderType == OrderType.Buy ? "Cost" : "Proceeds"):</strong> 
-                                    $@estimatedCost.ToString("F2")
-                                </div>
-                            }
-
-                            <div class="d-grid mt-3">
-                                <button class="btn btn-primary btn-lg" @onclick="PlaceOrder" disabled="@isProcessing">
-                                    @if (isProcessing)
+                                    @if (shares > 0)
                                     {
-                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        decimal estimatedCost = 0;
+                                        if (market.MarketType == MarketType.Binary)
+                                        {
+                                            estimatedCost = selectedOrderType == OrderType.Buy 
+                                                ? MarketService.CalculateBuyCost(market, selectedOutcome, shares)
+                                                : MarketService.CalculateSellProceeds(market, selectedOutcome, shares);
+                                        }
+                                        else
+                                        {
+                                            estimatedCost = selectedOrderType == OrderType.Buy
+                                                ? MarketService.CalculateMultiOutcomeBuyCost(market.Outcomes.ToList(), selectedOutcomeId, shares)
+                                                : 0; // Sell calculation would need current price lookup
+                                        }
+
+                                        <div class="alert alert-info mt-3">
+                                            <strong>Estimated @(selectedOrderType == OrderType.Buy ? "Cost" : "Proceeds"):</strong> 
+                                            $@estimatedCost.ToString("F2")
+                                        </div>
                                     }
-                                    @selectedOrderType @selectedOutcome Shares
+
+                                    <div class="d-grid mt-3">
+                                        <button class="btn btn-primary btn-lg" @onclick="PlaceOrder" disabled="@isProcessing">
+                                            @if (isProcessing)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                            }
+                                            @if (market.MarketType == MarketType.Binary)
+                                            {
+                                                <span>@selectedOrderType @selectedOutcome Shares</span>
+                                            }
+                                            else
+                                            {
+                                                var selectedOutcomeName = market.Outcomes.FirstOrDefault(o => o.Id == selectedOutcomeId)?.Name ?? "Outcome";
+                                                <span>@selectedOrderType @selectedOutcomeName Shares</span>
+                                            }
                                 </button>
                             </div>
 
@@ -222,6 +292,14 @@ else
     private User currentUser = new User { Id = 1, Email = "demo@polymarket.com", Balance = 10000m };
     private List<Order>? recentOrders;
 
+    // Binary market fields
+    private decimal yesPrice;
+    private decimal noPrice;
+
+    // Multi-outcome fields
+    private Dictionary<int, decimal> outcomePrices = new();
+    private int selectedOutcomeId;
+
     private OrderType selectedOrderType = OrderType.Buy;
     private Outcome selectedOutcome = Outcome.Yes;
     private decimal shares = 10;
@@ -229,9 +307,6 @@ else
     private bool isProcessing = false;
     private bool orderSuccess = false;
     private string orderMessage = string.Empty;
-
-    private decimal yesPrice;
-    private decimal noPrice;
 
     protected override async Task OnInitializedAsync()
     {
@@ -249,11 +324,22 @@ else
 
     private async Task LoadMarket()
     {
-        market = await MarketService.GetMarketByIdAsync(MarketId);
+        market = await MarketService.GetMarketWithOutcomesAsync(MarketId);
 
         if (market != null)
         {
-            (yesPrice, noPrice) = MarketService.GetCurrentPrices(market);
+            if (market.MarketType == MarketType.Binary)
+            {
+                (yesPrice, noPrice) = MarketService.GetCurrentPrices(market);
+            }
+            else
+            {
+                outcomePrices = MarketService.GetMultiOutcomePrices(market.Outcomes.ToList());
+                if (selectedOutcomeId == 0 && market.Outcomes.Any())
+                {
+                    selectedOutcomeId = market.Outcomes.First().Id;
+                }
+            }
             await LoadRecentOrders();
         }
     }
@@ -286,9 +372,20 @@ else
 
         try
         {
-            var result = selectedOrderType == OrderType.Buy
-                ? await MarketService.PlaceBuyOrderAsync(market.Id, currentUser.Id, selectedOutcome, shares)
-                : await MarketService.PlaceSellOrderAsync(market.Id, currentUser.Id, selectedOutcome, shares);
+            (bool success, string message) result;
+
+            if (market.MarketType == MarketType.Binary)
+            {
+                result = selectedOrderType == OrderType.Buy
+                    ? await MarketService.PlaceBuyOrderAsync(market.Id, currentUser.Id, selectedOutcome, shares)
+                    : await MarketService.PlaceSellOrderAsync(market.Id, currentUser.Id, selectedOutcome, shares);
+            }
+            else
+            {
+                result = selectedOrderType == OrderType.Buy
+                    ? await MarketService.PlaceMultiOutcomeBuyOrderAsync(market.Id, currentUser.Id, selectedOutcomeId, shares)
+                    : await MarketService.PlaceMultiOutcomeSellOrderAsync(market.Id, currentUser.Id, selectedOutcomeId, shares);
+            }
 
             orderSuccess = result.success;
             orderMessage = result.message;

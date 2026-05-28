@@ -120,6 +120,90 @@ public class UserService
             MemberSince = user.CreatedDate
         };
     }
+
+    // ==================== MULTI-OUTCOME METHODS ====================
+
+    // Get user multi-outcome positions with current values
+    public async Task<List<OutcomePositionViewModel>> GetUserOutcomePositionsAsync(int userId)
+    {
+        var positions = await _context.OutcomePositions
+            .Where(p => p.UserId == userId && p.Shares > 0)
+            .Include(p => p.MarketOutcome)
+                .ThenInclude(mo => mo.Market)
+            .ToListAsync();
+
+        var positionViewModels = new List<OutcomePositionViewModel>();
+
+        // Group by market to calculate prices efficiently
+        var marketGroups = positions.GroupBy(p => p.MarketOutcome.MarketId);
+
+        foreach (var marketGroup in marketGroups)
+        {
+            var market = await _context.Markets
+                .Include(m => m.Outcomes)
+                .FirstOrDefaultAsync(m => m.Id == marketGroup.Key);
+
+            if (market == null || market.MarketType != MarketType.MultiOutcome)
+                continue;
+
+            var prices = _marketService.GetMultiOutcomePrices(market.Outcomes.ToList());
+
+            foreach (var position in marketGroup)
+            {
+                decimal currentPrice = prices.GetValueOrDefault(position.MarketOutcomeId, 0.5m);
+                decimal currentValue = position.CalculateCurrentValue(currentPrice);
+                decimal profitLoss = position.CalculateProfitLoss(currentPrice);
+
+                positionViewModels.Add(new OutcomePositionViewModel
+                {
+                    Position = position,
+                    MarketOutcome = position.MarketOutcome,
+                    Market = position.MarketOutcome.Market,
+                    CurrentPrice = currentPrice,
+                    CurrentValue = currentValue,
+                    ProfitLoss = profitLoss
+                });
+            }
+        }
+
+        return positionViewModels.OrderByDescending(p => p.Position.LastUpdated).ToList();
+    }
+
+    // Get combined user statistics (binary + multi-outcome)
+    public async Task<UserStatistics> GetCombinedUserStatisticsAsync(int userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            return new UserStatistics();
+
+        // Binary positions
+        var binaryPositions = await GetUserPositionsAsync(userId);
+        decimal binaryInvested = binaryPositions.Sum(p => p.Position.TotalInvested);
+        decimal binaryValue = binaryPositions.Sum(p => p.CurrentValue);
+
+        // Multi-outcome positions
+        var outcomePositions = await GetUserOutcomePositionsAsync(userId);
+        decimal outcomeInvested = outcomePositions.Sum(p => p.Position.TotalInvested);
+        decimal outcomeValue = outcomePositions.Sum(p => p.CurrentValue);
+
+        // Combined
+        decimal totalInvested = binaryInvested + outcomeInvested;
+        decimal currentValue = binaryValue + outcomeValue;
+        decimal totalProfitLoss = currentValue - totalInvested;
+
+        var orders = await GetUserOrdersAsync(userId);
+
+        return new UserStatistics
+        {
+            Balance = user.Balance,
+            TotalInvested = totalInvested,
+            CurrentPortfolioValue = currentValue,
+            TotalProfitLoss = totalProfitLoss,
+            TotalOrders = orders.Count,
+            ActivePositions = binaryPositions.Count + outcomePositions.Count,
+            MemberSince = user.CreatedDate
+        };
+    }
 }
 
 // View model for positions with calculated values
@@ -146,4 +230,18 @@ public class UserStatistics
     public int TotalOrders { get; set; }
     public int ActivePositions { get; set; }
     public DateTime MemberSince { get; set; }
+}
+
+// View model for multi-outcome positions
+public class OutcomePositionViewModel
+{
+    public OutcomePosition Position { get; set; } = null!;
+    public MarketOutcome MarketOutcome { get; set; } = null!;
+    public Market Market { get; set; } = null!;
+    public decimal CurrentPrice { get; set; }
+    public decimal CurrentValue { get; set; }
+    public decimal ProfitLoss { get; set; }
+    public decimal ProfitLossPercent => Position.TotalInvested > 0 
+        ? (ProfitLoss / Position.TotalInvested) * 100 
+        : 0;
 }

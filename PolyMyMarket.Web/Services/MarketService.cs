@@ -365,4 +365,235 @@ public class MarketService
             return (false, $"Error creating market: {ex.Message}", 0);
         }
     }
+
+    // ==================== MULTI-OUTCOME MARKET METHODS ====================
+
+    // Get market with outcomes loaded
+    public async Task<Market?> GetMarketWithOutcomesAsync(int marketId)
+    {
+        return await _context.Markets
+            .Include(m => m.Outcomes.OrderBy(o => o.DisplayOrder))
+            .Include(m => m.Orders.OrderByDescending(o => o.Timestamp).Take(20))
+                .ThenInclude(o => o.User)
+            .FirstOrDefaultAsync(m => m.Id == marketId);
+    }
+
+    // Get current prices for all outcomes in a multi-outcome market
+    public Dictionary<int, decimal> GetMultiOutcomePrices(List<MarketOutcome> outcomes)
+    {
+        var prices = new Dictionary<int, decimal>();
+        decimal totalLiquidity = outcomes.Sum(o => o.LiquidityPool);
+
+        if (totalLiquidity == 0)
+        {
+            // Equal probability if no liquidity
+            decimal equalPrice = 1.0m / outcomes.Count;
+            foreach (var outcome in outcomes)
+            {
+                prices[outcome.Id] = Math.Round(equalPrice, 4);
+            }
+            return prices;
+        }
+
+        // Price = Other outcomes' liquidity / Total liquidity
+        // This ensures prices sum to approximately 1
+        foreach (var outcome in outcomes)
+        {
+            decimal otherLiquidity = totalLiquidity - outcome.LiquidityPool;
+            decimal price = otherLiquidity / totalLiquidity;
+
+            // Clamp price between 0.01 and 0.99
+            price = Math.Max(0.01m, Math.Min(0.99m, price));
+            prices[outcome.Id] = Math.Round(price, 4);
+        }
+
+        return prices;
+    }
+
+    // Calculate cost for buying shares in a multi-outcome market
+    public decimal CalculateMultiOutcomeBuyCost(List<MarketOutcome> outcomes, int outcomeId, decimal shares)
+    {
+        var outcome = outcomes.FirstOrDefault(o => o.Id == outcomeId);
+        if (outcome == null) return 0;
+
+        // Simple linear pricing for now
+        // Future enhancement: implement proper AMM pricing
+        var prices = GetMultiOutcomePrices(outcomes);
+        decimal price = prices.GetValueOrDefault(outcomeId, 0.5m);
+
+        return Math.Round(shares * price, 2);
+    }
+
+    // Place buy order for multi-outcome market
+    public async Task<(bool success, string message)> PlaceMultiOutcomeBuyOrderAsync(
+        int marketId, int userId, int outcomeId, decimal shares)
+    {
+        var market = await GetMarketWithOutcomesAsync(marketId);
+        if (market == null)
+            return (false, "Market not found");
+
+        if (market.Status != MarketStatus.Active)
+            return (false, "Market is not active");
+
+        if (market.MarketType != MarketType.MultiOutcome)
+            return (false, "This market is not a multi-outcome market");
+
+        var outcome = market.Outcomes.FirstOrDefault(o => o.Id == outcomeId);
+        if (outcome == null)
+            return (false, "Outcome not found");
+
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            return (false, "User not found");
+
+        // Calculate cost
+        decimal cost = CalculateMultiOutcomeBuyCost(market.Outcomes.ToList(), outcomeId, shares);
+
+        if (user.Balance < cost)
+            return (false, $"Insufficient balance. Cost: ${cost:F2}, Balance: ${user.Balance:F2}");
+
+        var prices = GetMultiOutcomePrices(market.Outcomes.ToList());
+        decimal price = prices.GetValueOrDefault(outcomeId, 0.5m);
+
+        // Create order
+        var order = new Order
+        {
+            MarketId = marketId,
+            UserId = userId,
+            MarketOutcomeId = outcomeId,
+            Outcome = null, // Multi-outcome markets don't use the legacy enum
+            Shares = shares,
+            Price = price,
+            OrderType = OrderType.Buy,
+            TotalCost = cost,
+            Timestamp = DateTime.UtcNow
+        };
+
+        _context.Orders.Add(order);
+
+        // Update user balance
+        user.Balance -= cost;
+
+        // Update outcome liquidity pool (add cost to this outcome's pool)
+        outcome.LiquidityPool += cost;
+
+        // Update or create outcome position
+        await UpdateOutcomePositionAsync(userId, outcomeId, shares, cost, true);
+
+        await _context.SaveChangesAsync();
+
+        return (true, $"Successfully bought {shares} shares of '{outcome.Name}' for ${cost:F2}");
+    }
+
+    // Place sell order for multi-outcome market
+    public async Task<(bool success, string message)> PlaceMultiOutcomeSellOrderAsync(
+        int marketId, int userId, int outcomeId, decimal shares)
+    {
+        var market = await GetMarketWithOutcomesAsync(marketId);
+        if (market == null)
+            return (false, "Market not found");
+
+        if (market.Status != MarketStatus.Active)
+            return (false, "Market is not active");
+
+        if (market.MarketType != MarketType.MultiOutcome)
+            return (false, "This market is not a multi-outcome market");
+
+        var outcome = market.Outcomes.FirstOrDefault(o => o.Id == outcomeId);
+        if (outcome == null)
+            return (false, "Outcome not found");
+
+        // Check position
+        var position = await _context.OutcomePositions
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.MarketOutcomeId == outcomeId);
+
+        if (position == null || position.Shares < shares)
+            return (false, $"Insufficient shares. You have {position?.Shares ?? 0} shares");
+
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            return (false, "User not found");
+
+        // Calculate proceeds (simple: current price * shares)
+        var prices = GetMultiOutcomePrices(market.Outcomes.ToList());
+        decimal price = prices.GetValueOrDefault(outcomeId, 0.5m);
+        decimal proceeds = Math.Round(shares * price, 2);
+
+        // Ensure outcome has enough liquidity to pay out
+        if (outcome.LiquidityPool < proceeds)
+            proceeds = outcome.LiquidityPool;
+
+        // Create order
+        var order = new Order
+        {
+            MarketId = marketId,
+            UserId = userId,
+            MarketOutcomeId = outcomeId,
+            Outcome = null,
+            Shares = shares,
+            Price = price,
+            OrderType = OrderType.Sell,
+            TotalCost = proceeds,
+            Timestamp = DateTime.UtcNow
+        };
+
+        _context.Orders.Add(order);
+
+        // Update user balance
+        user.Balance += proceeds;
+
+        // Update outcome liquidity pool
+        outcome.LiquidityPool -= proceeds;
+
+        // Update outcome position
+        await UpdateOutcomePositionAsync(userId, outcomeId, shares, proceeds, false);
+
+        await _context.SaveChangesAsync();
+
+        return (true, $"Successfully sold {shares} shares of '{outcome.Name}' for ${proceeds:F2}");
+    }
+
+    // Update user outcome position
+    private async Task UpdateOutcomePositionAsync(int userId, int outcomeId, decimal shares, decimal amount, bool isBuy)
+    {
+        var position = await _context.OutcomePositions
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.MarketOutcomeId == outcomeId);
+
+        if (position == null)
+        {
+            if (!isBuy) return; // Can't sell if no position exists
+
+            // Create new position
+            position = new OutcomePosition
+            {
+                UserId = userId,
+                MarketOutcomeId = outcomeId,
+                Shares = shares,
+                AveragePrice = amount / shares,
+                TotalInvested = amount,
+                LastUpdated = DateTime.UtcNow
+            };
+            _context.OutcomePositions.Add(position);
+        }
+        else
+        {
+            if (isBuy)
+            {
+                // Add to position
+                position.TotalInvested += amount;
+                position.Shares += shares;
+                position.AveragePrice = position.TotalInvested / position.Shares;
+            }
+            else
+            {
+                // Reduce position
+                decimal percentSold = shares / position.Shares;
+                position.Shares -= shares;
+                position.TotalInvested -= position.TotalInvested * percentSold;
+                // Average price stays the same
+            }
+
+            position.LastUpdated = DateTime.UtcNow;
+        }
+    }
 }

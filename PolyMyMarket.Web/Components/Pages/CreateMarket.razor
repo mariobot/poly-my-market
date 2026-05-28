@@ -80,6 +80,74 @@
                             <ValidationMessage For="@(() => model.Category)" class="text-danger small" />
                         </div>
 
+                        <!-- Market Type -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Market Type <span class="text-danger">*</span></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="marketType" id="binaryType" 
+                                       checked="@(model.MarketType == MarketType.Binary)" 
+                                       @onchange="@(() => ChangeMarketType(MarketType.Binary))" />
+                                <label class="btn btn-outline-primary" for="binaryType">
+                                    Binary (Yes/No)
+                                </label>
+
+                                <input type="radio" class="btn-check" name="marketType" id="multiType" 
+                                       checked="@(model.MarketType == MarketType.MultiOutcome)" 
+                                       @onchange="@(() => ChangeMarketType(MarketType.MultiOutcome))" />
+                                <label class="btn btn-outline-primary" for="multiType">
+                                    Multi-Outcome
+                                </label>
+                            </div>
+                            <div class="form-text">
+                                @if (model.MarketType == MarketType.Binary)
+                                {
+                                    <span>Traditional Yes/No market</span>
+                                }
+                                else
+                                {
+                                    <span>Multiple possible outcomes (e.g., election with 4 candidates)</span>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Multi-Outcome Builder -->
+                        @if (model.MarketType == MarketType.MultiOutcome)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Outcomes <span class="text-danger">*</span> <small class="text-muted">(2-10 outcomes)</small></label>
+
+                                @for (int i = 0; i < model.Outcomes.Count; i++)
+                                {
+                                    var index = i;
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text">@(i + 1)</span>
+                                        <input type="text" class="form-control" placeholder="Outcome name (e.g., 'Candidate A')" 
+                                               @bind="model.Outcomes[index].Name" @bind:event="oninput" />
+                                        <input type="text" class="form-control" placeholder="Optional description" 
+                                               @bind="model.Outcomes[index].Description" @bind:event="oninput" />
+                                        @if (model.Outcomes.Count > 2)
+                                        {
+                                            <button type="button" class="btn btn-outline-danger" @onclick="() => RemoveOutcome(index)">
+                                                ✕
+                                            </button>
+                                        }
+                                    </div>
+                                }
+
+                                @if (model.Outcomes.Count < 10)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddOutcome">
+                                        + Add Outcome
+                                    </button>
+                                }
+
+                                @if (string.IsNullOrWhiteSpace(GetOutcomeValidationMessage()) == false)
+                                {
+                                    <div class="text-danger small mt-1">@GetOutcomeValidationMessage()</div>
+                                }
+                            </div>
+                        }
+
                         <div class="row">
                             <!-- End Date -->
                             <div class="col-md-6 mb-3">
@@ -105,17 +173,36 @@
                         <div class="alert alert-info">
                             <h6 class="alert-heading">Market Preview</h6>
                             <hr />
-                            <div class="mb-2">
-                                <strong>Initial Yes Price:</strong> 50¢ (50%)
-                            </div>
-                            <div class="mb-2">
-                                <strong>Initial No Price:</strong> 50¢ (50%)
-                            </div>
-                            <div>
-                                <strong>Yes Pool:</strong> $@((model.InitialLiquidity / 2).ToString("F2"))
-                                <span class="mx-2">|</span>
-                                <strong>No Pool:</strong> $@((model.InitialLiquidity / 2).ToString("F2"))
-                            </div>
+                            @if (model.MarketType == MarketType.Binary)
+                            {
+                                <div class="mb-2">
+                                    <strong>Initial Yes Price:</strong> 50¢ (50%)
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Initial No Price:</strong> 50¢ (50%)
+                                </div>
+                                <div>
+                                    <strong>Yes Pool:</strong> $@((model.InitialLiquidity / 2).ToString("F2"))
+                                    <span class="mx-2">|</span>
+                                    <strong>No Pool:</strong> $@((model.InitialLiquidity / 2).ToString("F2"))
+                                </div>
+                            }
+                            else
+                            {
+                                var validOutcomes = model.Outcomes.Where(o => !string.IsNullOrWhiteSpace(o.Name)).ToList();
+                                var liquidityPerOutcome = validOutcomes.Any() ? model.InitialLiquidity / validOutcomes.Count : 0;
+                                var pricePerOutcome = validOutcomes.Any() ? 1.0m / validOutcomes.Count : 0;
+
+                                <div class="mb-2">
+                                    <strong>Outcomes:</strong> @validOutcomes.Count
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Initial Price per Outcome:</strong> @((pricePerOutcome * 100).ToString("F1"))¢ (@((pricePerOutcome * 100).ToString("F1"))%)
+                                </div>
+                                <div>
+                                    <strong>Liquidity per Outcome:</strong> $@(liquidityPerOutcome.ToString("F2"))
+                                </div>
+                            }
                         </div>
 
                         <!-- Buttons -->
@@ -146,15 +233,15 @@
                         <li>Clear, unambiguous resolution conditions</li>
                         <li>Verifiable outcome from reliable sources</li>
                         <li>Reasonable timeframe</li>
-                        <li>Binary Yes/No outcome</li>
+                        <li>Binary (Yes/No) or multi-outcome format</li>
                         <li>Not offensive or inappropriate</li>
                     </ul>
 
                     <h6 class="fw-bold mt-3">Examples of Good Markets:</h6>
                     <ul class="small">
-                        <li>"Will Bitcoin reach $100K by Dec 31, 2025?"</li>
-                        <li>"Will SpaceX launch Starship to orbit in 2025?"</li>
-                        <li>"Will unemployment rate exceed 5% in 2025?"</li>
+                        <li><strong>Binary:</strong> "Will Bitcoin reach $100K by Dec 31, 2025?"</li>
+                        <li><strong>Multi-Outcome:</strong> "Who will win the 2028 US Presidential Election?"</li>
+                        <li><strong>Multi-Outcome:</strong> "Which team will win the Super Bowl 2026?"</li>
                     </ul>
 
                     <h6 class="fw-bold mt-3">Avoid:</h6>
@@ -193,6 +280,53 @@
         // Set default values
         model.EndDate = DateTime.UtcNow.AddMonths(3).Date;
         model.InitialLiquidity = 1000m;
+        model.MarketType = MarketType.Binary;
+
+        // Initialize with 2 empty outcomes for multi-outcome
+        model.Outcomes.Add(new OutcomeModel { Name = "", Description = "" });
+        model.Outcomes.Add(new OutcomeModel { Name = "", Description = "" });
+    }
+
+    private void ChangeMarketType(MarketType type)
+    {
+        model.MarketType = type;
+        StateHasChanged();
+    }
+
+    private void AddOutcome()
+    {
+        if (model.Outcomes.Count < 10)
+        {
+            model.Outcomes.Add(new OutcomeModel { Name = "", Description = "" });
+        }
+    }
+
+    private void RemoveOutcome(int index)
+    {
+        if (model.Outcomes.Count > 2)
+        {
+            model.Outcomes.RemoveAt(index);
+        }
+    }
+
+    private string? GetOutcomeValidationMessage()
+    {
+        if (model.MarketType != MarketType.MultiOutcome) return null;
+
+        var validOutcomes = model.Outcomes.Where(o => !string.IsNullOrWhiteSpace(o.Name)).ToList();
+
+        if (validOutcomes.Count < 2)
+            return "At least 2 outcomes are required";
+
+        var duplicates = validOutcomes.GroupBy(o => o.Name.Trim().ToLower())
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicates.Any())
+            return $"Duplicate outcome names: {string.Join(", ", duplicates)}";
+
+        return null;
     }
 
     private async Task HandleValidSubmit()
@@ -202,19 +336,62 @@
 
         try
         {
+            // Validate multi-outcome markets
+            if (model.MarketType == MarketType.MultiOutcome)
+            {
+                var validationMessage = GetOutcomeValidationMessage();
+                if (!string.IsNullOrWhiteSpace(validationMessage))
+                {
+                    errorMessage = validationMessage;
+                    isSubmitting = false;
+                    return;
+                }
+            }
+
             // Create market object
             var market = new Market
             {
                 Title = model.Title,
                 Description = model.Description,
                 Category = model.Category,
+                MarketType = model.MarketType,
                 EndDate = model.EndDate.ToUniversalTime(),
                 InitialLiquidity = model.InitialLiquidity,
-                YesPool = model.InitialLiquidity / 2,
-                NoPool = model.InitialLiquidity / 2,
                 Status = MarketStatus.Active,
                 CreatedDate = DateTime.UtcNow
             };
+
+            if (model.MarketType == MarketType.Binary)
+            {
+                // Binary market: set up Yes/No pools
+                market.YesPool = model.InitialLiquidity / 2;
+                market.NoPool = model.InitialLiquidity / 2;
+            }
+            else
+            {
+                // Multi-outcome market: create outcomes
+                var validOutcomes = model.Outcomes
+                    .Where(o => !string.IsNullOrWhiteSpace(o.Name))
+                    .ToList();
+
+                decimal liquidityPerOutcome = model.InitialLiquidity / validOutcomes.Count;
+
+                for (int i = 0; i < validOutcomes.Count; i++)
+                {
+                    market.Outcomes.Add(new MarketOutcome
+                    {
+                        Name = validOutcomes[i].Name.Trim(),
+                        Description = validOutcomes[i].Description?.Trim() ?? string.Empty,
+                        DisplayOrder = i + 1,
+                        LiquidityPool = liquidityPerOutcome,
+                        IsWinner = false
+                    });
+                }
+
+                // Set legacy pools to 0 for multi-outcome
+                market.YesPool = 0;
+                market.NoPool = 0;
+            }
 
             var result = await MarketService.CreateMarketAsync(market);
 
@@ -267,5 +444,15 @@
         [Required(ErrorMessage = "Initial liquidity is required")]
         [Range(100, 1000000, ErrorMessage = "Initial liquidity must be between $100 and $1,000,000")]
         public decimal InitialLiquidity { get; set; } = 1000m;
+
+        public MarketType MarketType { get; set; } = MarketType.Binary;
+
+        public List<OutcomeModel> Outcomes { get; set; } = new();
+    }
+
+    public class OutcomeModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
     }
 }

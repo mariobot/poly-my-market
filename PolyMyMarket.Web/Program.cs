@@ -11,6 +11,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddRadzenComponents();
+builder.Services.AddScoped<NotificationService>();
 
 // Add database context
 builder.Services.AddDbContext<MarketContext>(options =>

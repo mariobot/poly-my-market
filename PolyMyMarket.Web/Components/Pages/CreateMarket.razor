@@ -2,278 +2,285 @@
 @using PolyMyMarket.Models
 @using PolyMyMarket.Web.Services
 @using System.ComponentModel.DataAnnotations
+@using Radzen
+@using Radzen.Blazor
 @inject MarketService MarketService
 @inject NavigationManager Navigation
+@inject NotificationService NotificationService
 @rendermode InteractiveServer
 
 <PageTitle>Create Market - PolyMyMarket</PageTitle>
 
-<div class="container py-4">
-    <div class="row mb-4">
-        <div class="col">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="/markets">Markets</a></li>
-                    <li class="breadcrumb-item active">Create Market</li>
-                </ol>
-            </nav>
-            <h1 class="display-5 fw-bold">Create New Market</h1>
-            <p class="lead text-muted">Create a new prediction market for users to trade on</p>
-        </div>
-    </div>
+<RadzenStack Gap="1rem" class="rz-p-4 rz-p-md-12">
+    <!-- Header -->
+    <RadzenStack Gap="0.5rem">
+        <RadzenBreadCrumb>
+            <RadzenBreadCrumbItem Path="/markets" Text="Markets" Icon="show_chart" />
+            <RadzenBreadCrumbItem Text="Create Market" Icon="add_circle_outline" />
+        </RadzenBreadCrumb>
+        <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">Create New Market</RadzenText>
+        <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-color-secondary">Create a new prediction market for users to trade on</RadzenText>
+    </RadzenStack>
 
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <EditForm Model="@model" OnValidSubmit="@HandleValidSubmit">
-                        <DataAnnotationsValidator />
+    <!-- Main Content -->
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeLG="8">
+            <RadzenCard>
+                <RadzenTemplateForm TItem="CreateMarketModel" Data="@model" Submit="@HandleValidSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="rz-mb-4" />
 
-                        @if (!string.IsNullOrEmpty(errorMessage))
-                        {
-                            <div class="alert alert-danger alert-dismissible fade show">
-                                @errorMessage
-                                <button type="button" class="btn-close" @onclick="ClearError"></button>
-                            </div>
-                        }
-
-                        @if (!string.IsNullOrEmpty(successMessage))
-                        {
-                            <div class="alert alert-success alert-dismissible fade show">
-                                @successMessage
-                                <button type="button" class="btn-close" @onclick="ClearSuccess"></button>
-                            </div>
-                        }
-
-                        <!-- Title -->
-                        <div class="mb-3">
-                            <label for="title" class="form-label fw-bold">Market Title <span class="text-danger">*</span></label>
-                            <InputText id="title" class="form-control" @bind-Value="model.Title" placeholder="e.g., Will Bitcoin reach $100,000 by end of 2025?" />
-                            <ValidationMessage For="@(() => model.Title)" class="text-danger small" />
-                            <div class="form-text">Make it clear and specific. Users should understand what they're betting on.</div>
-                        </div>
+                    <!-- Title -->
+                    <RadzenStack Gap="1rem">
+                        <RadzenFormField Text="Market Title" Variant="@Variant.Outlined">
+                            <RadzenTextBox @bind-Value="@model.Title" Placeholder="e.g., Will Bitcoin reach $100,000 by end of 2025?" Style="width: 100%;" />
+                        </RadzenFormField>
+                        <RadzenText TextStyle="TextStyle.Caption" class="rz-color-secondary">
+                            Make it clear and specific. Users should understand what they're betting on.
+                        </RadzenText>
 
                         <!-- Description -->
-                        <div class="mb-3">
-                            <label for="description" class="form-label fw-bold">Description <span class="text-danger">*</span></label>
-                            <InputTextArea id="description" class="form-control" rows="4" @bind-Value="model.Description" 
-                                          placeholder="Describe the market resolution criteria. What conditions need to be met for Yes/No outcomes?" />
-                            <ValidationMessage For="@(() => model.Description)" class="text-danger small" />
-                            <div class="form-text">Explain clearly how and when this market will resolve.</div>
-                        </div>
+                        <RadzenFormField Text="Description" Variant="@Variant.Outlined">
+                            <RadzenTextArea @bind-Value="@model.Description" Rows="4" 
+                                          Placeholder="Describe the market resolution criteria. What conditions need to be met for Yes/No outcomes?" 
+                                          Style="width: 100%;" />
+                        </RadzenFormField>
+                        <RadzenText TextStyle="TextStyle.Caption" class="rz-color-secondary">
+                            Explain clearly how and when this market will resolve.
+                        </RadzenText>
 
                         <!-- Category -->
-                        <div class="mb-3">
-                            <label for="category" class="form-label fw-bold">Category <span class="text-danger">*</span></label>
-                            <InputSelect id="category" class="form-select" @bind-Value="model.Category">
-                                <option value="">-- Select Category --</option>
-                                <option value="Cryptocurrency">Cryptocurrency</option>
-                                <option value="Technology">Technology</option>
-                                <option value="Economics">Economics</option>
-                                <option value="Politics">Politics</option>
-                                <option value="Sports">Sports</option>
-                                <option value="Entertainment">Entertainment</option>
-                                <option value="Science">Science</option>
-                                <option value="Space">Space</option>
-                                <option value="Other">Other</option>
-                            </InputSelect>
-                            <ValidationMessage For="@(() => model.Category)" class="text-danger small" />
-                        </div>
+                        <RadzenFormField Text="Category" Variant="@Variant.Outlined">
+                            <RadzenDropDown @bind-Value="@model.Category" Data="@categories" Style="width: 100%;" 
+                                          Placeholder="-- Select Category --" />
+                        </RadzenFormField>
 
                         <!-- Market Type -->
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Market Type <span class="text-danger">*</span></label>
-                            <div class="btn-group w-100" role="group">
-                                <input type="radio" class="btn-check" name="marketType" id="binaryType" 
-                                       checked="@(model.MarketType == MarketType.Binary)" 
-                                       @onchange="@(() => ChangeMarketType(MarketType.Binary))" />
-                                <label class="btn btn-outline-primary" for="binaryType">
-                                    Binary (Yes/No)
-                                </label>
-
-                                <input type="radio" class="btn-check" name="marketType" id="multiType" 
-                                       checked="@(model.MarketType == MarketType.MultiOutcome)" 
-                                       @onchange="@(() => ChangeMarketType(MarketType.MultiOutcome))" />
-                                <label class="btn btn-outline-primary" for="multiType">
-                                    Multi-Outcome
-                                </label>
-                            </div>
-                            <div class="form-text">
-                                @if (model.MarketType == MarketType.Binary)
-                                {
-                                    <span>Traditional Yes/No market</span>
-                                }
-                                else
-                                {
-                                    <span>Multiple possible outcomes (e.g., election with 4 candidates)</span>
-                                }
-                            </div>
-                        </div>
+                        <RadzenFormField Text="Market Type" Variant="@Variant.Outlined">
+                            <RadzenRadioButtonList @bind-Value="@model.MarketType" TValue="MarketType" 
+                                                  Orientation="Orientation.Horizontal">
+                                <Items>
+                                    <RadzenRadioButtonListItem Text="Binary (Yes/No)" Value="@MarketType.Binary" />
+                                    <RadzenRadioButtonListItem Text="Multi-Outcome" Value="@MarketType.MultiOutcome" />
+                                </Items>
+                            </RadzenRadioButtonList>
+                        </RadzenFormField>
+                        <RadzenText TextStyle="TextStyle.Caption" class="rz-color-secondary">
+                            @if (model.MarketType == MarketType.Binary)
+                            {
+                                <span>Traditional Yes/No market</span>
+                            }
+                            else
+                            {
+                                <span>Multiple possible outcomes (e.g., election with 4 candidates)</span>
+                            }
+                        </RadzenText>
 
                         <!-- Multi-Outcome Builder -->
                         @if (model.MarketType == MarketType.MultiOutcome)
                         {
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Outcomes <span class="text-danger">*</span> <small class="text-muted">(2-10 outcomes)</small></label>
-
-                                @for (int i = 0; i < model.Outcomes.Count; i++)
-                                {
-                                    var index = i;
-                                    <div class="input-group mb-2">
-                                        <span class="input-group-text">@(i + 1)</span>
-                                        <input type="text" class="form-control" placeholder="Outcome name (e.g., 'Candidate A')" 
-                                               @bind="model.Outcomes[index].Name" @bind:event="oninput" />
-                                        <input type="text" class="form-control" placeholder="Optional description" 
-                                               @bind="model.Outcomes[index].Description" @bind:event="oninput" />
-                                        @if (model.Outcomes.Count > 2)
+                            <RadzenFieldset>
+                                <HeaderTemplate>
+                                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                        <RadzenIcon Icon="list" />
+                                        <RadzenText TextStyle="TextStyle.Subtitle1">Outcomes (2-10 outcomes)</RadzenText>
+                                    </RadzenStack>
+                                </HeaderTemplate>
+                                <ChildContent>
+                                    <RadzenStack Gap="0.5rem">
+                                        @for (int i = 0; i < model.Outcomes.Count; i++)
                                         {
-                                            <button type="button" class="btn btn-outline-danger" @onclick="() => RemoveOutcome(index)">
-                                                ✕
-                                            </button>
+                                            var index = i;
+                                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                                                <RadzenBadge BadgeStyle="BadgeStyle.Secondary" Text="@((index + 1).ToString())" />
+                                                <RadzenTextBox @bind-Value="@model.Outcomes[index].Name" 
+                                                             Placeholder="Outcome name (e.g., 'Candidate A')" 
+                                                             Style="flex: 1;" />
+                                                <RadzenTextBox @bind-Value="@model.Outcomes[index].Description" 
+                                                             Placeholder="Optional description" 
+                                                             Style="flex: 1;" />
+                                                @if (model.Outcomes.Count > 2)
+                                                {
+                                                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger" 
+                                                                Variant="Variant.Outlined" Size="ButtonSize.Small"
+                                                                Click="@(() => RemoveOutcome(index))" />
+                                                }
+                                            </RadzenStack>
                                         }
-                                    </div>
-                                }
 
-                                @if (model.Outcomes.Count < 10)
-                                {
-                                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddOutcome">
-                                        + Add Outcome
-                                    </button>
-                                }
+                                        @if (model.Outcomes.Count < 10)
+                                        {
+                                            <RadzenButton Text="Add Outcome" Icon="add" ButtonStyle="ButtonStyle.Primary" 
+                                                        Variant="Variant.Outlined" Size="ButtonSize.Small"
+                                                        Click="@AddOutcome" />
+                                        }
 
-                                @if (string.IsNullOrWhiteSpace(GetOutcomeValidationMessage()) == false)
-                                {
-                                    <div class="text-danger small mt-1">@GetOutcomeValidationMessage()</div>
-                                }
-                            </div>
+                                        @if (!string.IsNullOrWhiteSpace(GetOutcomeValidationMessage()))
+                                        {
+                                            <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter">
+                                                @GetOutcomeValidationMessage()
+                                            </RadzenAlert>
+                                        }
+                                    </RadzenStack>
+                                </ChildContent>
+                            </RadzenFieldset>
                         }
 
-                        <div class="row">
+                        <RadzenRow>
                             <!-- End Date -->
-                            <div class="col-md-6 mb-3">
-                                <label for="endDate" class="form-label fw-bold">End Date <span class="text-danger">*</span></label>
-                                <InputDate id="endDate" class="form-control" @bind-Value="model.EndDate" />
-                                <ValidationMessage For="@(() => model.EndDate)" class="text-danger small" />
-                                <div class="form-text">Trading closes on this date</div>
-                            </div>
+                            <RadzenColumn Size="12" SizeMD="6">
+                                <RadzenFormField Text="End Date" Variant="@Variant.Outlined">
+                                    <RadzenDatePicker @bind-Value="@model.EndDate" DateFormat="MM/dd/yyyy" Style="width: 100%;" />
+                                </RadzenFormField>
+                                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-secondary">
+                                    Trading closes on this date
+                                </RadzenText>
+                            </RadzenColumn>
 
                             <!-- Initial Liquidity -->
-                            <div class="col-md-6 mb-3">
-                                <label for="liquidity" class="form-label fw-bold">Initial Liquidity <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <InputNumber id="liquidity" class="form-control" @bind-Value="model.InitialLiquidity" />
-                                </div>
-                                <ValidationMessage For="@(() => model.InitialLiquidity)" class="text-danger small" />
-                                <div class="form-text">Minimum: $100. Higher liquidity = less price slippage</div>
-                            </div>
-                        </div>
+                            <RadzenColumn Size="12" SizeMD="6">
+                                <RadzenFormField Text="Initial Liquidity" Variant="@Variant.Outlined">
+                                    <RadzenNumeric @bind-Value="@model.InitialLiquidity" Format="c" Min="100" Max="1000000" 
+                                                 Style="width: 100%;" ShowUpDown="false" />
+                                </RadzenFormField>
+                                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-secondary">
+                                    Minimum: $100. Higher liquidity = less price slippage
+                                </RadzenText>
+                            </RadzenColumn>
+                        </RadzenRow>
 
                         <!-- Market Preview -->
-                        <div class="alert alert-info">
-                            <h6 class="alert-heading">Market Preview</h6>
-                            <hr />
-                            @if (model.MarketType == MarketType.Binary)
-                            {
-                                <div class="mb-2">
-                                    <strong>Initial Yes Price:</strong> 50¢ (50%)
-                                </div>
-                                <div class="mb-2">
-                                    <strong>Initial No Price:</strong> 50¢ (50%)
-                                </div>
-                                <div>
-                                    <strong>Yes Pool:</strong> $@((model.InitialLiquidity / 2).ToString("F2"))
-                                    <span class="mx-2">|</span>
-                                    <strong>No Pool:</strong> $@((model.InitialLiquidity / 2).ToString("F2"))
-                                </div>
-                            }
-                            else
-                            {
-                                var validOutcomes = model.Outcomes.Where(o => !string.IsNullOrWhiteSpace(o.Name)).ToList();
-                                var liquidityPerOutcome = validOutcomes.Any() ? model.InitialLiquidity / validOutcomes.Count : 0;
-                                var pricePerOutcome = validOutcomes.Any() ? 1.0m / validOutcomes.Count : 0;
+                        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter">
+                            <RadzenStack Gap="0.5rem">
+                                <RadzenText TextStyle="TextStyle.Subtitle2">Market Preview</RadzenText>
+                                @if (model.MarketType == MarketType.Binary)
+                                {
+                                    <RadzenText TextStyle="TextStyle.Body2">
+                                        <strong>Initial Yes Price:</strong> 50¢ (50%)
+                                    </RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2">
+                                        <strong>Initial No Price:</strong> 50¢ (50%)
+                                    </RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2">
+                                        <strong>Yes Pool:</strong> @((model.InitialLiquidity / 2).ToString("C"))
+                                        <span class="rz-mx-2">|</span>
+                                        <strong>No Pool:</strong> @((model.InitialLiquidity / 2).ToString("C"))
+                                    </RadzenText>
+                                }
+                                else
+                                {
+                                    var validOutcomes = model.Outcomes.Where(o => !string.IsNullOrWhiteSpace(o.Name)).ToList();
+                                    var liquidityPerOutcome = validOutcomes.Any() ? model.InitialLiquidity / validOutcomes.Count : 0;
+                                    var pricePerOutcome = validOutcomes.Any() ? 1.0m / validOutcomes.Count : 0;
 
-                                <div class="mb-2">
-                                    <strong>Outcomes:</strong> @validOutcomes.Count
-                                </div>
-                                <div class="mb-2">
-                                    <strong>Initial Price per Outcome:</strong> @((pricePerOutcome * 100).ToString("F1"))¢ (@((pricePerOutcome * 100).ToString("F1"))%)
-                                </div>
-                                <div>
-                                    <strong>Liquidity per Outcome:</strong> $@(liquidityPerOutcome.ToString("F2"))
-                                </div>
-                            }
-                        </div>
+                                    <RadzenText TextStyle="TextStyle.Body2">
+                                        <strong>Outcomes:</strong> @validOutcomes.Count
+                                    </RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2">
+                                        <strong>Initial Price per Outcome:</strong> @((pricePerOutcome * 100).ToString("F1"))¢ (@((pricePerOutcome * 100).ToString("F1"))%)
+                                    </RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2">
+                                        <strong>Liquidity per Outcome:</strong> @liquidityPerOutcome.ToString("C")
+                                    </RadzenText>
+                                }
+                            </RadzenStack>
+                        </RadzenAlert>
 
                         <!-- Buttons -->
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg" disabled="@isSubmitting">
-                                @if (isSubmitting)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-2"></span>
-                                }
-                                Create Market
-                            </button>
-                            <a href="/markets" class="btn btn-outline-secondary btn-lg">Cancel</a>
-                        </div>
-                    </EditForm>
-                </div>
-            </div>
-        </div>
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                            <RadzenButton ButtonType="ButtonType.Submit" Text="Create Market" Icon="add_circle" 
+                                        ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Large"
+                                        Disabled="@isSubmitting" IsBusy="@isSubmitting" BusyText="Creating..." />
+                            <RadzenButton Text="Cancel" Icon="close" ButtonStyle="ButtonStyle.Light" 
+                                        Size="ButtonSize.Large" Click="@(() => Navigation.NavigateTo("/markets"))" />
+                        </RadzenStack>
+                    </RadzenStack>
+                </RadzenTemplateForm>
+            </RadzenCard>
+        </RadzenColumn>
 
         <!-- Guidelines Sidebar -->
-        <div class="col-lg-4">
-            <div class="card shadow-sm border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">📋 Market Guidelines</h5>
-                </div>
-                <div class="card-body">
-                    <h6 class="fw-bold">Good Market Criteria:</h6>
-                    <ul class="small">
-                        <li>Clear, unambiguous resolution conditions</li>
-                        <li>Verifiable outcome from reliable sources</li>
-                        <li>Reasonable timeframe</li>
-                        <li>Binary (Yes/No) or multi-outcome format</li>
-                        <li>Not offensive or inappropriate</li>
-                    </ul>
+        <RadzenColumn Size="12" SizeLG="4">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="checklist" Style="color: var(--rz-primary);" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Market Guidelines</RadzenText>
+                    </RadzenStack>
 
-                    <h6 class="fw-bold mt-3">Examples of Good Markets:</h6>
-                    <ul class="small">
-                        <li><strong>Binary:</strong> "Will Bitcoin reach $100K by Dec 31, 2025?"</li>
-                        <li><strong>Multi-Outcome:</strong> "Who will win the 2028 US Presidential Election?"</li>
-                        <li><strong>Multi-Outcome:</strong> "Which team will win the Super Bowl 2026?"</li>
-                    </ul>
+                    <RadzenStack Gap="0.5rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Good Market Criteria:</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                            <ul style="margin: 0; padding-left: 1.25rem;">
+                                <li>Clear, unambiguous resolution conditions</li>
+                                <li>Verifiable outcome from reliable sources</li>
+                                <li>Reasonable timeframe</li>
+                                <li>Binary (Yes/No) or multi-outcome format</li>
+                                <li>Not offensive or inappropriate</li>
+                            </ul>
+                        </RadzenText>
+                    </RadzenStack>
 
-                    <h6 class="fw-bold mt-3">Avoid:</h6>
-                    <ul class="small">
-                        <li>Vague or subjective outcomes</li>
-                        <li>Markets that can't be verified</li>
-                        <li>Offensive or inappropriate content</li>
-                        <li>Markets that violate laws or regulations</li>
-                    </ul>
-                </div>
-            </div>
+                    <RadzenStack Gap="0.5rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Examples of Good Markets:</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                            <ul style="margin: 0; padding-left: 1.25rem;">
+                                <li><strong>Binary:</strong> "Will Bitcoin reach $100K by Dec 31, 2025?"</li>
+                                <li><strong>Multi-Outcome:</strong> "Who will win the 2028 US Presidential Election?"</li>
+                                <li><strong>Multi-Outcome:</strong> "Which team will win the Super Bowl 2026?"</li>
+                            </ul>
+                        </RadzenText>
+                    </RadzenStack>
 
-            <div class="card shadow-sm mt-3">
-                <div class="card-body">
-                    <h6 class="fw-bold">💡 Pro Tips</h6>
-                    <ul class="small">
-                        <li>Set end dates 1-2 weeks before resolution date</li>
-                        <li>Higher liquidity attracts more traders</li>
-                        <li>Reference specific sources for resolution</li>
-                        <li>Consider time zones in your criteria</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                    <RadzenStack Gap="0.5rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Avoid:</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                            <ul style="margin: 0; padding-left: 1.25rem;">
+                                <li>Vague or subjective outcomes</li>
+                                <li>Markets that can't be verified</li>
+                                <li>Offensive or inappropriate content</li>
+                                <li>Markets that violate laws or regulations</li>
+                            </ul>
+                        </RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+
+            <RadzenCard class="rz-shadow-3 rz-mt-4">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="tips_and_updates" Style="color: var(--rz-warning);" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Pro Tips</RadzenText>
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                        <ul style="margin: 0; padding-left: 1.25rem;">
+                            <li>Set end dates 1-2 weeks before resolution date</li>
+                            <li>Higher liquidity attracts more traders</li>
+                            <li>Reference specific sources for resolution</li>
+                            <li>Consider time zones in your criteria</li>
+                        </ul>
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
 
 @code {
     private CreateMarketModel model = new();
     private bool isSubmitting = false;
-    private string errorMessage = string.Empty;
-    private string successMessage = string.Empty;
+    private List<string> categories = new()
+    {
+        "Cryptocurrency",
+        "Technology",
+        "Economics",
+        "Politics",
+        "Sports",
+        "Entertainment",
+        "Science",
+        "Space",
+        "Other"
+    };
 
     protected override void OnInitialized()
     {
@@ -285,12 +292,6 @@
         // Initialize with 2 empty outcomes for multi-outcome
         model.Outcomes.Add(new OutcomeModel { Name = "", Description = "" });
         model.Outcomes.Add(new OutcomeModel { Name = "", Description = "" });
-    }
-
-    private void ChangeMarketType(MarketType type)
-    {
-        model.MarketType = type;
-        StateHasChanged();
     }
 
     private void AddOutcome()
@@ -332,7 +333,6 @@
     private async Task HandleValidSubmit()
     {
         isSubmitting = true;
-        ClearMessages();
 
         try
         {
@@ -342,7 +342,13 @@
                 var validationMessage = GetOutcomeValidationMessage();
                 if (!string.IsNullOrWhiteSpace(validationMessage))
                 {
-                    errorMessage = validationMessage;
+                    NotificationService.Notify(new NotificationMessage 
+                    { 
+                        Severity = NotificationSeverity.Error, 
+                        Summary = "Validation Error", 
+                        Detail = validationMessage, 
+                        Duration = 4000 
+                    });
                     isSubmitting = false;
                     return;
                 }
@@ -397,33 +403,42 @@
 
             if (result.success)
             {
-                successMessage = "Market created successfully! Redirecting...";
+                NotificationService.Notify(new NotificationMessage 
+                { 
+                    Severity = NotificationSeverity.Success, 
+                    Summary = "Success", 
+                    Detail = "Market created successfully!", 
+                    Duration = 4000 
+                });
                 await Task.Delay(1500);
                 Navigation.NavigateTo($"/market/{result.marketId}");
             }
             else
             {
-                errorMessage = result.message;
+                NotificationService.Notify(new NotificationMessage 
+                { 
+                    Severity = NotificationSeverity.Error, 
+                    Summary = "Error", 
+                    Detail = result.message, 
+                    Duration = 4000 
+                });
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error creating market: {ex.Message}";
+            NotificationService.Notify(new NotificationMessage 
+            { 
+                Severity = NotificationSeverity.Error, 
+                Summary = "Error", 
+                Detail = $"Error creating market: {ex.Message}", 
+                Duration = 4000 
+            });
         }
         finally
         {
             isSubmitting = false;
         }
     }
-
-    private void ClearMessages()
-    {
-        errorMessage = string.Empty;
-        successMessage = string.Empty;
-    }
-
-    private void ClearError() => errorMessage = string.Empty;
-    private void ClearSuccess() => successMessage = string.Empty;
 
     public class CreateMarketModel
     {

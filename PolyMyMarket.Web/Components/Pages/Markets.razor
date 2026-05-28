@@ -46,7 +46,6 @@
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             @foreach (var market in markets)
             {
-                var (yesPrice, noPrice) = MarketService.GetCurrentPrices(market);
                 var daysLeft = (market.EndDate - DateTime.UtcNow).Days;
 
                 <div class="col">
@@ -54,6 +53,10 @@
                         <div class="card-body d-flex flex-column">
                             <div class="mb-2">
                                 <span class="badge bg-primary">@market.Category</span>
+                                @if (market.MarketType == MarketType.MultiOutcome)
+                                {
+                                    <span class="badge bg-info ms-1">Multi-Outcome</span>
+                                }
                                 <span class="badge bg-secondary ms-1">
                                     @if (daysLeft > 0)
                                     {
@@ -73,20 +76,30 @@
                             </p>
 
                             <div class="mt-3">
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <div class="p-3 bg-success bg-opacity-10 rounded">
-                                            <div class="text-success fw-bold small">YES</div>
-                                            <div class="h4 mb-0 fw-bold">@((yesPrice * 100).ToString("F1"))¢</div>
+                                @if (market.MarketType == MarketType.Binary)
+                                {
+                                    var (yesPrice, noPrice) = MarketService.GetCurrentPrices(market);
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <div class="p-3 bg-success bg-opacity-10 rounded">
+                                                <div class="text-success fw-bold small">YES</div>
+                                                <div class="h4 mb-0 fw-bold">@((yesPrice * 100).ToString("F1"))¢</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="p-3 bg-danger bg-opacity-10 rounded">
+                                                <div class="text-danger fw-bold small">NO</div>
+                                                <div class="h4 mb-0 fw-bold">@((noPrice * 100).ToString("F1"))¢</div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-6">
-                                        <div class="p-3 bg-danger bg-opacity-10 rounded">
-                                            <div class="text-danger fw-bold small">NO</div>
-                                            <div class="h4 mb-0 fw-bold">@((noPrice * 100).ToString("F1"))¢</div>
-                                        </div>
+                                }
+                                else
+                                {
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="text-muted small">Click to view outcomes</div>
                                     </div>
-                                </div>
+                                }
                             </div>
                         </div>
                         <div class="card-footer bg-transparent border-top-0">

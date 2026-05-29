@@ -12,6 +12,7 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddRadzenComponents();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<DialogService>();
 
 // Add database context
 builder.Services.AddDbContext<MarketContext>(options =>
@@ -30,6 +31,7 @@ builder.Services.AddDbContext<MarketContext>(options =>
 // Add application services
 builder.Services.AddScoped<MarketService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<UserSessionService>();
 
 var app = builder.Build();
 

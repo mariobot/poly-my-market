@@ -1,0 +1,309 @@
+﻿@page "/user-create"
+@using PolyMyMarket.Models
+@using PolyMyMarket.Web.Services
+@using System.ComponentModel.DataAnnotations
+@using Radzen
+@using Radzen.Blazor
+@inject UserService UserService
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+@rendermode InteractiveServer
+
+<PageTitle>Create User - PolyMyMarket</PageTitle>
+
+<RadzenStack Gap="1rem" class="rz-p-4 rz-p-md-12">
+    <!-- Header -->
+    <RadzenStack Gap="0.5rem">
+        <RadzenBreadCrumb>
+            <RadzenBreadCrumbItem Path="/" Text="Home" Icon="home" />
+            <RadzenBreadCrumbItem Text="Create User" Icon="person_add" />
+        </RadzenBreadCrumb>
+        <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">Create New User</RadzenText>
+        <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-color-secondary">
+            Register a new user to start trading on prediction markets
+        </RadzenText>
+    </RadzenStack>
+
+    <!-- Main Content -->
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeMD="8" SizeLG="6">
+            <RadzenCard>
+                <RadzenTemplateForm TItem="CreateUserModel" Data="@model" Submit="@HandleValidSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="rz-mb-4" />
+
+                    <RadzenStack Gap="1.5rem">
+                        <!-- Name -->
+                        <RadzenStack Gap="0.5rem">
+                            <RadzenFormField Text="Full Name" Variant="@Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenTextBox @bind-Value="@model.Name" 
+                                                 Placeholder="e.g., John Doe" 
+                                                 Style="width: 100%;" 
+                                                 MaxLength="100" />
+                                </ChildContent>
+                                <Helper>
+                                    <RadzenText TextStyle="TextStyle.Caption" class="rz-color-secondary">
+                                        Enter your full name (max 100 characters)
+                                    </RadzenText>
+                                </Helper>
+                            </RadzenFormField>
+                        </RadzenStack>
+
+                        <!-- Email -->
+                        <RadzenStack Gap="0.5rem">
+                            <RadzenFormField Text="Email Address" Variant="@Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenTextBox @bind-Value="@model.Email" 
+                                                 Placeholder="e.g., john.doe@example.com" 
+                                                 Style="width: 100%;" 
+                                                 MaxLength="200"
+                                                 InputType="InputType.Email" />
+                                </ChildContent>
+                                <Helper>
+                                    <RadzenText TextStyle="TextStyle.Caption" class="rz-color-secondary">
+                                        Your email must be unique in the system
+                                    </RadzenText>
+                                </Helper>
+                            </RadzenFormField>
+                        </RadzenStack>
+
+                        <!-- Initial Balance -->
+                        <RadzenStack Gap="0.5rem">
+                            <RadzenFormField Text="Initial Balance" Variant="@Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenNumeric @bind-Value="@model.InitialBalance" 
+                                                 Format="c" 
+                                                 Min="100" 
+                                                 Max="100000"
+                                                 Step="100"
+                                                 Style="width: 100%;" 
+                                                 ShowUpDown="true" />
+                                </ChildContent>
+                                <Helper>
+                                    <RadzenText TextStyle="TextStyle.Caption" class="rz-color-secondary">
+                                        Starting balance for trading ($100 - $100,000)
+                                    </RadzenText>
+                                </Helper>
+                            </RadzenFormField>
+                        </RadzenStack>
+
+                        <!-- User Preview -->
+                        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter">
+                            <RadzenStack Gap="0.5rem">
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                    <RadzenIcon Icon="preview" />
+                                    <RadzenText TextStyle="TextStyle.Subtitle2">Account Preview</RadzenText>
+                                </RadzenStack>
+
+                                @if (!string.IsNullOrWhiteSpace(model.Name) && !string.IsNullOrWhiteSpace(model.Email))
+                                {
+                                    <RadzenStack Gap="0.25rem" class="rz-mt-2">
+                                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                                            <RadzenIcon Icon="person" Style="font-size: 1rem;" />
+                                            <RadzenText TextStyle="TextStyle.Body2">
+                                                <strong>Name:</strong> @model.Name
+                                            </RadzenText>
+                                        </RadzenStack>
+                                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                                            <RadzenIcon Icon="email" Style="font-size: 1rem;" />
+                                            <RadzenText TextStyle="TextStyle.Body2">
+                                                <strong>Email:</strong> @model.Email
+                                            </RadzenText>
+                                        </RadzenStack>
+                                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                                            <RadzenIcon Icon="account_balance_wallet" Style="font-size: 1rem;" />
+                                            <RadzenText TextStyle="TextStyle.Body2">
+                                                <strong>Starting Balance:</strong> @model.InitialBalance.ToString("C")
+                                            </RadzenText>
+                                        </RadzenStack>
+                                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                                            <RadzenIcon Icon="calendar_today" Style="font-size: 1rem;" />
+                                            <RadzenText TextStyle="TextStyle.Body2">
+                                                <strong>Registration Date:</strong> @DateTime.UtcNow.ToString("MMM dd, yyyy")
+                                            </RadzenText>
+                                        </RadzenStack>
+                                    </RadzenStack>
+                                }
+                                else
+                                {
+                                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                                        Fill in your details to see the account preview
+                                    </RadzenText>
+                                }
+                            </RadzenStack>
+                        </RadzenAlert>
+
+                        <!-- Buttons -->
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mt-2">
+                            <RadzenButton ButtonType="ButtonType.Submit" 
+                                        Text="Create Account" 
+                                        Icon="person_add" 
+                                        ButtonStyle="ButtonStyle.Primary" 
+                                        Size="ButtonSize.Large"
+                                        Disabled="@isSubmitting" 
+                                        IsBusy="@isSubmitting" 
+                                        BusyText="Creating..." 
+                                        Style="flex: 1;" />
+                            <RadzenButton Text="Cancel" 
+                                        Icon="close" 
+                                        ButtonStyle="ButtonStyle.Light" 
+                                        Size="ButtonSize.Large"
+                                        Click="@(() => Navigation.NavigateTo("/"))" 
+                                        Style="flex: 1;" />
+                        </RadzenStack>
+                    </RadzenStack>
+                </RadzenTemplateForm>
+            </RadzenCard>
+        </RadzenColumn>
+
+        <!-- Info Sidebar -->
+        <RadzenColumn Size="12" SizeMD="4" SizeLG="6">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="info" Style="color: var(--rz-info);" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Getting Started</RadzenText>
+                    </RadzenStack>
+
+                    <RadzenStack Gap="0.5rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">What you can do:</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                            <ul style="margin: 0.5rem 0; padding-left: 1.25rem;">
+                                <li>Browse and trade on active prediction markets</li>
+                                <li>Create your own prediction markets</li>
+                                <li>Track your portfolio and trading history</li>
+                                <li>View real-time market prices and liquidity</li>
+                            </ul>
+                        </RadzenText>
+                    </RadzenStack>
+
+                    <RadzenDivider />
+
+                    <RadzenStack Gap="0.5rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Initial Balance:</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                            Your initial balance will be used for trading on markets. You can start with as little as $100 or up to $100,000. This is virtual currency for the platform.
+                        </RadzenText>
+                    </RadzenStack>
+
+                    <RadzenDivider />
+
+                    <RadzenStack Gap="0.5rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Privacy & Security:</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                            Your email must be unique and will be used to identify your account. We don't share your information with third parties.
+                        </RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+
+            <RadzenCard class="rz-shadow-3 rz-mt-4">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="tips_and_updates" Style="color: var(--rz-warning);" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Pro Tips</RadzenText>
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                        <ul style="margin: 0.5rem 0; padding-left: 1.25rem;">
+                            <li>Start with a moderate balance to learn the platform</li>
+                            <li>Explore different market categories</li>
+                            <li>Monitor your positions regularly</li>
+                            <li>Read market descriptions carefully before trading</li>
+                        </ul>
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    private CreateUserModel model = new();
+    private bool isSubmitting = false;
+
+    protected override void OnInitialized()
+    {
+        // Set default initial balance
+        model.InitialBalance = 10000m;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+
+        try
+        {
+            // Check if user with email already exists
+            var existingUser = await UserService.GetOrCreateUserAsync(model.Email, model.Name);
+
+            // If user already exists with this email
+            if (existingUser.Name != model.Name || Math.Abs(existingUser.Balance - model.InitialBalance) > 0.01m)
+            {
+                // User already exists with same email but different details
+                if (existingUser.CreatedDate < DateTime.UtcNow.AddSeconds(-5))
+                {
+                    NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Warning,
+                        Summary = "User Already Exists",
+                        Detail = $"An account with email '{model.Email}' already exists. Redirecting to portfolio...",
+                        Duration = 5000
+                    });
+                    await Task.Delay(2000);
+                    Navigation.NavigateTo("/portfolio");
+                    return;
+                }
+            }
+
+            // Update balance if different from default
+            if (Math.Abs(existingUser.Balance - model.InitialBalance) > 0.01m && 
+                existingUser.CreatedDate >= DateTime.UtcNow.AddSeconds(-5))
+            {
+                existingUser.Balance = model.InitialBalance;
+                await UserService.UpdateUserBalanceAsync(existingUser.Id, model.InitialBalance);
+            }
+
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Success",
+                Detail = $"Welcome {model.Name}! Your account has been created successfully.",
+                Duration = 5000
+            });
+
+            await Task.Delay(1500);
+            Navigation.NavigateTo("/markets");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = $"Error creating user: {ex.Message}",
+                Duration = 5000
+            });
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    public class CreateUserModel
+    {
+        [Required(ErrorMessage = "Name is required")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 100 characters")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        [StringLength(200, ErrorMessage = "Email must not exceed 200 characters")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Initial balance is required")]
+        [Range(100, 100000, ErrorMessage = "Initial balance must be between $100 and $100,000")]
+        public decimal InitialBalance { get; set; } = 10000m;
+    }
+}

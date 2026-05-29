@@ -1,0 +1,372 @@
+﻿@page "/users"
+@using PolyMyMarket.Models
+@using PolyMyMarket.Web.Services
+@using Radzen
+@using Radzen.Blazor
+@inject UserService UserService
+@inject UserSessionService SessionService
+@inject NavigationManager Navigation
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>Users Management - PolyMyMarket</PageTitle>
+
+<RadzenStack Gap="1rem" class="rz-p-4 rz-p-md-12">
+    <!-- Header -->
+    <RadzenRow AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenStack Gap="0.5rem">
+                <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">Users Management</RadzenText>
+                <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-color-secondary">
+                    Manage users and select the active trading account
+                </RadzenText>
+            </RadzenStack>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+                <RadzenButton Text="Create User" 
+                            Icon="person_add" 
+                            ButtonStyle="ButtonStyle.Primary"
+                            Click="@(() => Navigation.NavigateTo("/user/create"))" />
+                <RadzenButton Text="Refresh" 
+                            Icon="refresh" 
+                            ButtonStyle="ButtonStyle.Light"
+                            Click="@LoadUsers" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <!-- Current User Banner -->
+    @if (SessionService.CurrentUser != null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Success" Variant="Variant.Flat" Shade="Shade.Lighter" AllowClose="false">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween" Gap="1rem">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+                    <RadzenIcon Icon="account_circle" Style="font-size: 2.5rem; color: var(--rz-success);" />
+                    <RadzenStack Gap="0.25rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Current Active User</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">@SessionService.CurrentUser.Name</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2">
+                            @SessionService.CurrentUser.Email • Balance: @SessionService.CurrentUser.Balance.ToString("C")
+                        </RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Text="Clear Selection" 
+                            Icon="close" 
+                            ButtonStyle="ButtonStyle.Danger"
+                            Variant="Variant.Outlined"
+                            Size="ButtonSize.Small"
+                            Click="@ClearCurrentUser" />
+            </RadzenStack>
+        </RadzenAlert>
+    }
+    else
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Warning" Variant="Variant.Flat" Shade="Shade.Lighter" AllowClose="false">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+                <RadzenIcon Icon="warning" Style="font-size: 2rem;" />
+                <RadzenStack Gap="0.25rem">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">No Active User Selected</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">
+                        Please select a user from the list below to start trading
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenStack>
+        </RadzenAlert>
+    }
+
+    <!-- Users DataGrid -->
+    <RadzenCard>
+        @if (isLoading)
+        {
+            <RadzenStack AlignItems="AlignItems.Center" Gap="1rem" class="rz-p-12">
+                <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+                <RadzenText TextStyle="TextStyle.Body1">Loading users...</RadzenText>
+            </RadzenStack>
+        }
+        else if (users == null || !users.Any())
+        {
+            <RadzenStack AlignItems="AlignItems.Center" Gap="1rem" class="rz-p-12">
+                <RadzenIcon Icon="person_off" Style="font-size: 4rem; color: var(--rz-text-secondary-color);" />
+                <RadzenText TextStyle="TextStyle.H6">No Users Found</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                    Create your first user to get started
+                </RadzenText>
+                <RadzenButton Text="Create User" 
+                            Icon="person_add" 
+                            ButtonStyle="ButtonStyle.Primary"
+                            Click="@(() => Navigation.NavigateTo("/user/create"))" />
+            </RadzenStack>
+        }
+        else
+        {
+            <RadzenDataGrid Data="@users" 
+                          TItem="User" 
+                          AllowColumnResize="true"
+                          AllowSorting="true"
+                          AllowFiltering="true"
+                          FilterMode="FilterMode.Simple"
+                          AllowPaging="true"
+                          PageSize="10"
+                          PagerHorizontalAlign="HorizontalAlign.Center"
+                          ShowPagingSummary="true"
+                          Style="height: auto;">
+                <Columns>
+                    <RadzenDataGridColumn TItem="User" 
+                                        Property="Id" 
+                                        Title="ID" 
+                                        Width="80px"
+                                        Sortable="true"
+                                        Filterable="false">
+                        <Template Context="user">
+                            <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@user.Id.ToString()" />
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="User" 
+                                        Property="Name" 
+                                        Title="Name" 
+                                        Width="200px"
+                                        Sortable="true">
+                        <Template Context="user">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                <RadzenIcon Icon="person" />
+                                <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 600;">@user.Name</RadzenText>
+                                @if (SessionService.CurrentUser?.Id == user.Id)
+                                {
+                                    <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Active" Variant="Variant.Filled" />
+                                }
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="User" 
+                                        Property="Email" 
+                                        Title="Email" 
+                                        Sortable="true">
+                        <Template Context="user">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                <RadzenIcon Icon="email" Style="font-size: 1rem;" />
+                                <RadzenText TextStyle="TextStyle.Body2">@user.Email</RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="User" 
+                                        Property="Balance" 
+                                        Title="Balance" 
+                                        Width="150px"
+                                        Sortable="true"
+                                        Filterable="false">
+                        <Template Context="user">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                <RadzenIcon Icon="account_balance_wallet" Style="font-size: 1rem; color: var(--rz-success);" />
+                                <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 600; color: var(--rz-success);">
+                                    @user.Balance.ToString("C")
+                                </RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="User" 
+                                        Property="CreatedDate" 
+                                        Title="Created" 
+                                        Width="160px"
+                                        Sortable="true"
+                                        Filterable="false">
+                        <Template Context="user">
+                            <RadzenText TextStyle="TextStyle.Body2">
+                                @user.CreatedDate.ToString("MMM dd, yyyy")
+                            </RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="User" 
+                                        Title="Actions" 
+                                        Width="280px"
+                                        Filterable="false"
+                                        Sortable="false"
+                                        TextAlign="TextAlign.Center">
+                        <Template Context="user">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" JustifyContent="JustifyContent.Center">
+                                @if (SessionService.CurrentUser?.Id != user.Id)
+                                {
+                                    <RadzenButton Text="Select" 
+                                                Icon="check_circle" 
+                                                ButtonStyle="ButtonStyle.Success"
+                                                Variant="Variant.Outlined"
+                                                Size="ButtonSize.Small"
+                                                Click="@(() => SelectUser(user))"
+                                                title="Set as active user" />
+                                }
+                                <RadzenButton Text="Edit" 
+                                            Icon="edit" 
+                                            ButtonStyle="ButtonStyle.Primary"
+                                            Variant="Variant.Outlined"
+                                            Size="ButtonSize.Small"
+                                            Click="@(() => EditUser(user))"
+                                            title="Edit user details" />
+                                <RadzenButton Icon="delete" 
+                                            ButtonStyle="ButtonStyle.Danger"
+                                            Variant="Variant.Outlined"
+                                            Size="ButtonSize.Small"
+                                            Click="@(() => DeleteUser(user))"
+                                            title="Delete user" />
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        }
+    </RadzenCard>
+
+    <!-- Quick Stats -->
+    <RadzenRow>
+        <RadzenColumn Size="12" SizeMD="3">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenIcon Icon="group" Style="font-size: 3rem; color: var(--rz-primary);" />
+                    <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@(users?.Count ?? 0)</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-color-secondary">Total Users</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="3">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenIcon Icon="account_balance_wallet" Style="font-size: 3rem; color: var(--rz-success);" />
+                    <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@((users?.Sum(u => u.Balance) ?? 0).ToString("C0"))</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-color-secondary">Total Balance</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="3">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenIcon Icon="trending_up" Style="font-size: 3rem; color: var(--rz-info);" />
+                    <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@((users?.Average(u => u.Balance) ?? 0).ToString("C0"))</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-color-secondary">Avg Balance</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="3">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenIcon Icon="@(SessionService.CurrentUser != null ? "check_circle" : "cancel")" 
+                              Style="@($"font-size: 3rem; color: var(--rz-{(SessionService.CurrentUser != null ? "success" : "warning")});")" />
+                    <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@(SessionService.CurrentUser != null ? "Active" : "None")</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-color-secondary">Selected User</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    private List<User>? users;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+        SessionService.OnUserChanged += StateHasChanged;
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            users = await UserService.GetAllUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = $"Failed to load users: {ex.Message}",
+                Duration = 4000
+            });
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SelectUser(User user)
+    {
+        SessionService.SetCurrentUser(user);
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Success,
+            Summary = "User Selected",
+            Detail = $"{user.Name} is now the active user",
+            Duration = 3000
+        });
+    }
+
+    private void ClearCurrentUser()
+    {
+        SessionService.ClearCurrentUser();
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Info,
+            Summary = "User Cleared",
+            Detail = "No active user selected",
+            Duration = 3000
+        });
+    }
+
+    private async Task EditUser(User user)
+    {
+        var result = await DialogService.OpenAsync<EditUserDialog>($"Edit User - {user.Name}",
+            new Dictionary<string, object> { { "User", user } },
+            new DialogOptions { Width = "600px", Height = "auto", Resizable = true, Draggable = true });
+
+        if (result is true)
+        {
+            await LoadUsers();
+        }
+    }
+
+    private async Task DeleteUser(User user)
+    {
+        var confirm = await DialogService.Confirm(
+            $"Are you sure you want to delete user '{user.Name}'?",
+            "Delete User",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirm == true)
+        {
+            var (success, message) = await UserService.DeleteUserAsync(user.Id);
+
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = success ? NotificationSeverity.Success : NotificationSeverity.Error,
+                Summary = success ? "User Deleted" : "Error",
+                Detail = message,
+                Duration = 4000
+            });
+
+            if (success)
+            {
+                if (SessionService.CurrentUser?.Id == user.Id)
+                {
+                    SessionService.ClearCurrentUser();
+                }
+                await LoadUsers();
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        SessionService.OnUserChanged -= StateHasChanged;
+    }
+}

@@ -54,6 +54,80 @@ public class UserService
         }
     }
 
+    // Get all users
+    public async Task<List<User>> GetAllUsersAsync()
+    {
+        return await _context.Users
+            .OrderByDescending(u => u.CreatedDate)
+            .ToListAsync();
+    }
+
+    // Update user details
+    public async Task<(bool success, string message)> UpdateUserAsync(int userId, string name, string email, decimal balance)
+    {
+        try
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return (false, "User not found");
+            }
+
+            // Check if email is being changed to one that already exists
+            if (user.Email != email)
+            {
+                var existingUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email == email && u.Id != userId);
+                if (existingUser != null)
+                {
+                    return (false, "Email already exists");
+                }
+            }
+
+            user.Name = name;
+            user.Email = email;
+            user.Balance = balance;
+
+            await _context.SaveChangesAsync();
+            return (true, "User updated successfully");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error updating user: {ex.Message}");
+        }
+    }
+
+    // Delete user
+    public async Task<(bool success, string message)> DeleteUserAsync(int userId)
+    {
+        try
+        {
+            var user = await _context.Users
+                .Include(u => u.Orders)
+                .Include(u => u.Positions)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+            {
+                return (false, "User not found");
+            }
+
+            // Check if user has active positions
+            if (user.Positions.Any(p => p.YesShares > 0 || p.NoShares > 0))
+            {
+                return (false, "Cannot delete user with active positions");
+            }
+
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+            return (true, "User deleted successfully");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error deleting user: {ex.Message}");
+        }
+    }
+
     // Get user positions with current values
     public async Task<List<PositionViewModel>> GetUserPositionsAsync(int userId)
     {

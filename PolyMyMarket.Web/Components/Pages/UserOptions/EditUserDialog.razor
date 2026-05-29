@@ -1,0 +1,147 @@
+@using PolyMyMarket.Models
+@using PolyMyMarket.Web.Services
+@using System.ComponentModel.DataAnnotations
+@using Radzen
+@using Radzen.Blazor
+@inject UserService UserService
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+<RadzenTemplateForm TItem="EditUserModel" Data="@model" Submit="@HandleSubmit">
+    <DataAnnotationsValidator />
+
+    <RadzenStack Gap="1rem">
+        <!-- Name -->
+        <RadzenFormField Text="Name" Variant="@Variant.Outlined">
+            <RadzenTextBox @bind-Value="@model.Name" 
+                         Placeholder="Full name" 
+                         Style="width: 100%;" 
+                         MaxLength="100" />
+        </RadzenFormField>
+
+        <!-- Email -->
+        <RadzenFormField Text="Email" Variant="@Variant.Outlined">
+            <RadzenTextBox @bind-Value="@model.Email" 
+                         Placeholder="Email address" 
+                         Style="width: 100%;" 
+                         MaxLength="200"
+                         InputType="InputType.Email" />
+        </RadzenFormField>
+
+        <!-- Balance -->
+        <RadzenFormField Text="Balance" Variant="@Variant.Outlined">
+            <RadzenNumeric @bind-Value="@model.Balance" 
+                         Format="c" 
+                         Min="0" 
+                         Max="1000000"
+                         Step="100"
+                         Style="width: 100%;" 
+                         ShowUpDown="true" />
+        </RadzenFormField>
+
+        <ValidationSummary />
+
+        <!-- Buttons -->
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" JustifyContent="JustifyContent.End">
+            <RadzenButton ButtonType="ButtonType.Submit" 
+                        Text="Save Changes" 
+                        Icon="save" 
+                        ButtonStyle="ButtonStyle.Primary"
+                        Disabled="@isSubmitting" 
+                        IsBusy="@isSubmitting" />
+            <RadzenButton Text="Cancel" 
+                        Icon="close" 
+                        ButtonStyle="ButtonStyle.Light"
+                        Click="@Cancel" />
+        </RadzenStack>
+    </RadzenStack>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter]
+    public User User { get; set; } = null!;
+
+    private EditUserModel model = new();
+    private bool isSubmitting = false;
+
+    protected override void OnInitialized()
+    {
+        model = new EditUserModel
+        {
+            Name = User.Name,
+            Email = User.Email,
+            Balance = User.Balance
+        };
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+
+        try
+        {
+            var (success, message) = await UserService.UpdateUserAsync(
+                User.Id,
+                model.Name,
+                model.Email,
+                model.Balance);
+
+            if (success)
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Success",
+                    Detail = message,
+                    Duration = 3000
+                });
+                DialogService.Close(true);
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = message,
+                    Duration = 4000
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = $"Failed to update user: {ex.Message}",
+                Duration = 4000
+            });
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        DialogService.Close(false);
+    }
+
+    public class EditUserModel
+    {
+        [Required(ErrorMessage = "Name is required")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 100 characters")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        [StringLength(200, ErrorMessage = "Email must not exceed 200 characters")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Balance is required")]
+        [Range(0, 1000000, ErrorMessage = "Balance must be between $0 and $1,000,000")]
+        public decimal Balance { get; set; }
+    }
+}

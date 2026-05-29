@@ -43,6 +43,17 @@ public class UserService
         return await _context.Users.FindAsync(userId);
     }
 
+    // Update user balance
+    public async Task UpdateUserBalanceAsync(int userId, decimal newBalance)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user != null)
+        {
+            user.Balance = newBalance;
+            await _context.SaveChangesAsync();
+        }
+    }
+
     // Get user positions with current values
     public async Task<List<PositionViewModel>> GetUserPositionsAsync(int userId)
     {

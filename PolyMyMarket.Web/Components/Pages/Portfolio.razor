@@ -1,27 +1,51 @@
 @page "/portfolio"
 @using PolyMyMarket.Models
 @using PolyMyMarket.Web.Services
+@using Radzen
 @inject UserService UserService
+@inject UserSessionService SessionService
 @inject NavigationManager Navigation
+@inject NotificationService NotificationService
 @rendermode InteractiveServer
+@implements IDisposable
 
-<PageTitle>Portfolio - PolyMyMarket</PageTitle>
+<PageTitle>@(SessionService.CurrentUser != null ? $"{SessionService.CurrentUser.Name}'s Portfolio" : "Portfolio") - PolyMyMarket</PageTitle>
 
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col">
-            <h1 class="display-5 fw-bold">My Portfolio</h1>
+            <h1 class="display-5 fw-bold">
+                @if (SessionService.CurrentUser != null)
+                {
+                    <text>@SessionService.CurrentUser.Name's Portfolio</text>
+                }
+                else
+                {
+                    <text>My Portfolio</text>
+                }
+            </h1>
             <p class="lead text-muted">Track your positions and performance</p>
         </div>
     </div>
 
-    @if (statistics == null || positions == null)
+    @if (SessionService.CurrentUser == null)
+    {
+        <div class="alert alert-warning" role="alert">
+            <div class="text-center py-5">
+                <i class="bi bi-exclamation-triangle display-1"></i>
+                <h4 class="mt-3">No User Selected</h4>
+                <p class="text-muted">Please select a user from the Users page to view their portfolio</p>
+                <a href="/users" class="btn btn-primary">Go to Users</a>
+            </div>
+        </div>
+    }
+    else if (statistics == null || positions == null)
     {
         <div class="text-center py-5">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <p class="mt-3 text-muted">Loading portfolio...</p>
+            <p class="mt-3 text-muted">Loading portfolio for @SessionService.CurrentUser.Name...</p>
         </div>
     }
     else
@@ -263,22 +287,63 @@
     private UserStatistics? statistics;
     private List<PositionViewModel>? positions;
     private List<Order>? recentOrders;
-    private int currentUserId = 1; // Demo user
 
     protected override async Task OnInitializedAsync()
     {
+        SessionService.OnUserChanged += HandleUserChanged;
+        await LoadPortfolio();
+    }
+
+    private async void HandleUserChanged()
+    {
+        // Reset data first to show loading state
+        statistics = null;
+        positions = null;
+        recentOrders = null;
+        StateHasChanged();
+
+        // Load new portfolio
         await LoadPortfolio();
     }
 
     private async Task LoadPortfolio()
     {
-        statistics = await UserService.GetCombinedUserStatisticsAsync(currentUserId);
-        positions = await UserService.GetUserPositionsAsync(currentUserId);
-        recentOrders = await UserService.GetUserOrdersAsync(currentUserId, count: 20);
+        if (SessionService.CurrentUser == null)
+        {
+            statistics = null;
+            positions = null;
+            recentOrders = null;
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            var userId = SessionService.CurrentUser.Id;
+            statistics = await UserService.GetCombinedUserStatisticsAsync(userId);
+            positions = await UserService.GetUserPositionsAsync(userId);
+            recentOrders = await UserService.GetUserOrdersAsync(userId, count: 20);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = $"Failed to load portfolio: {ex.Message}",
+                Duration = 4000
+            });
+        }
     }
 
     private void NavigateToMarket(int marketId)
     {
         Navigation.NavigateTo($"/market/{marketId}");
+    }
+
+    public void Dispose()
+    {
+        SessionService.OnUserChanged -= HandleUserChanged;
     }
 }

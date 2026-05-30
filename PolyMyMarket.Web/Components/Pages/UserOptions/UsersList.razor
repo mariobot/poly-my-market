@@ -29,7 +29,7 @@
                 <RadzenButton Text="Create User" 
                             Icon="person_add" 
                             ButtonStyle="ButtonStyle.Primary"
-                            Click="@(() => Navigation.NavigateTo("/user/create"))" />
+                            Click="@(() => Navigation.NavigateTo("/user-create"))" />
                 <RadzenButton Text="Refresh" 
                             Icon="refresh" 
                             ButtonStyle="ButtonStyle.Light"
@@ -97,7 +97,7 @@
                 <RadzenButton Text="Create User" 
                             Icon="person_add" 
                             ButtonStyle="ButtonStyle.Primary"
-                            Click="@(() => Navigation.NavigateTo("/user/create"))" />
+                              Click="@(() => Navigation.NavigateTo("/user-create"))" />
             </RadzenStack>
         }
         else
@@ -185,7 +185,7 @@
 
                     <RadzenDataGridColumn TItem="User" 
                                         Title="Actions" 
-                                        Width="280px"
+                                        Width="350px"
                                         Filterable="false"
                                         Sortable="false"
                                         TextAlign="TextAlign.Center">
@@ -201,6 +201,13 @@
                                                 Click="@(() => SelectUser(user))"
                                                 title="Set as active user" />
                                 }
+                                <RadzenButton Text="Portfolio" 
+                                            Icon="account_balance_wallet" 
+                                            ButtonStyle="ButtonStyle.Info"
+                                            Variant="Variant.Outlined"
+                                            Size="ButtonSize.Small"
+                                            Click="@(() => ViewPortfolio(user))"
+                                            title="View user portfolio" />
                                 <RadzenButton Text="Edit" 
                                             Icon="edit" 
                                             ButtonStyle="ButtonStyle.Primary"
@@ -326,7 +333,7 @@
     private async Task EditUser(User user)
     {
         var result = await DialogService.OpenAsync<EditUserDialog>($"Edit User - {user.Name}",
-            new Dictionary<string, object> { { "User", user } },
+            new Dictionary<string, object?> { { "User", user } },
             new DialogOptions { Width = "600px", Height = "auto", Resizable = true, Draggable = true });
 
         if (result is true)
@@ -363,6 +370,24 @@
                 await LoadUsers();
             }
         }
+    }
+
+    private void ViewPortfolio(User user)
+    {
+        // Set the user as active before navigating to portfolio
+        SessionService.SetCurrentUser(user);
+
+        // Navigate to portfolio page
+        Navigation.NavigateTo("/portfolio");
+
+        // Show notification
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Success,
+            Summary = "Viewing Portfolio",
+            Detail = $"Viewing portfolio for {user.Name}",
+            Duration = 3000
+        });
     }
 
     public void Dispose()

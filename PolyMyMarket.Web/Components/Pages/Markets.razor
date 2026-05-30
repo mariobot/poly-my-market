@@ -1,9 +1,11 @@
 @page "/markets"
 @using PolyMyMarket.Models
 @using PolyMyMarket.Web.Services
+@using Microsoft.AspNetCore.WebUtilities
 @inject MarketService MarketService
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>Markets - PolyMyMarket</PageTitle>
 
@@ -12,8 +14,30 @@
         <div class="col">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="display-5 fw-bold">Prediction Markets</h1>
-                    <p class="lead text-muted">Browse and trade on the outcomes of future events</p>
+                    <h1 class="display-5 fw-bold">
+                        @if (!string.IsNullOrWhiteSpace(selectedCategory))
+                        {
+                            <text>@selectedCategory Markets</text>
+                        }
+                        else
+                        {
+                            <text>Prediction Markets</text>
+                        }
+                    </h1>
+                    <p class="lead text-muted">
+                        Browse and trade on the outcomes of future events
+                        @if (!string.IsNullOrWhiteSpace(selectedCategory))
+                        {
+                            <text> in @selectedCategory</text>
+                        }
+                    </p>
+                    @if (!string.IsNullOrWhiteSpace(selectedCategory))
+                    {
+                        <a href="/markets" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-x-circle me-1"></i>
+                            Clear Filter
+                        </a>
+                    }
                 </div>
                 <div>
                     <a href="/create-market" class="btn btn-primary btn-lg">
@@ -37,8 +61,28 @@
     else if (!markets.Any())
     {
         <div class="alert alert-info">
-            <h4 class="alert-heading">No Active Markets</h4>
-            <p>There are currently no active markets. Check back soon!</p>
+            <h4 class="alert-heading">
+                @if (!string.IsNullOrWhiteSpace(selectedCategory))
+                {
+                    <text>No @selectedCategory Markets Found</text>
+                }
+                else
+                {
+                    <text>No Active Markets</text>
+                }
+            </h4>
+            <p>
+                @if (!string.IsNullOrWhiteSpace(selectedCategory))
+                {
+                    <text>There are currently no active markets in the @selectedCategory category.</text>
+                    <br />
+                    <a href="/markets" class="btn btn-sm btn-outline-primary mt-2">View All Markets</a>
+                }
+                else
+                {
+                    <text>There are currently no active markets. Check back soon!</text>
+                }
+            </p>
         </div>
     }
     else
@@ -175,19 +219,67 @@
 
 @code {
     private List<Market>? markets;
+    private List<Market>? allMarkets;
+    private string? selectedCategory;
 
     protected override async Task OnInitializedAsync()
     {
+        // Subscribe to location changes
+        Navigation.LocationChanged += HandleLocationChanged;
+
         await LoadMarkets();
+        ApplyFilters();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ApplyFilters();
     }
 
     private async Task LoadMarkets()
     {
-        markets = await MarketService.GetActiveMarketsAsync();
+        allMarkets = await MarketService.GetActiveMarketsAsync();
+    }
+
+    private void ApplyFilters()
+    {
+        if (allMarkets == null) return;
+
+        // Get category from URL query string
+        var uri = new Uri(Navigation.Uri);
+        var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+        selectedCategory = queryParams.TryGetValue("category", out var categoryValue) 
+            ? categoryValue.ToString() 
+            : null;
+
+        // Filter markets by category if specified
+        if (!string.IsNullOrWhiteSpace(selectedCategory))
+        {
+            markets = allMarkets
+                .Where(m => m.Category.Equals(selectedCategory, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        else
+        {
+            markets = allMarkets;
+        }
+
+        StateHasChanged();
+    }
+
+    private void HandleLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        ApplyFilters();
     }
 
     private void NavigateToMarket(int marketId)
     {
         Navigation.NavigateTo($"/market/{marketId}");
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= HandleLocationChanged;
     }
 }

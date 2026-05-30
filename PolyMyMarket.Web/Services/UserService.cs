@@ -162,17 +162,6 @@ public class UserService
         return positionViewModels.OrderByDescending(p => p.Position.LastUpdated).ToList();
     }
 
-    // Get user position for a specific market
-    public async Task<Position?> GetUserPositionForMarketAsync(int userId, int marketId)
-    {
-        var position = await _context.Positions
-            .Where(p => p.UserId == userId && p.MarketId == marketId)
-            .Include(p => p.Market)
-            .FirstOrDefaultAsync();
-
-        return position;
-    }
-
     // Get user order history
     public async Task<List<Order>> GetUserOrdersAsync(int userId, int? marketId = null, int count = 50)
     {

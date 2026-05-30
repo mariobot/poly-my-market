@@ -1,8 +1,5 @@
 @using Radzen
 @using Radzen.Blazor
-@using PolyMyMarket.Web.Services
-@inject UserSessionService SessionService
-@implements IDisposable
 
 <div class="rz-sidebar">
     <RadzenStack Gap="0">
@@ -45,50 +42,20 @@
 
         <!-- User Info Section -->
         <RadzenStack Gap="0.5rem" class="rz-p-4 rz-mt-auto" Style="border-top: 1px solid var(--rz-border-color); background-color: var(--rz-base-100);">
-            @if (SessionService.CurrentUser != null)
-            {
-                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                    <RadzenIcon Icon="account_circle" Style="font-size: 2rem; color: var(--rz-success);" />
-                    <RadzenStack Gap="0">
-                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 600; margin: 0;">
-                            @SessionService.CurrentUser.Name
-                        </RadzenText>
-                        <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); margin: 0;">
-                            @SessionService.CurrentUser.Email
-                        </RadzenText>
-                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@($"Balance: {SessionService.CurrentUser.Balance:C}")" Variant="Variant.Flat" Style="margin-top: 0.25rem;" />
-                    </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="account_circle" Style="font-size: 2rem; color: var(--rz-primary);" />
+                <RadzenStack Gap="0">
+                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 600; margin: 0;">
+                        Demo User
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); margin: 0;">
+                        demo@polymarket.com
+                    </RadzenText>
                 </RadzenStack>
-            }
-            else
-            {
-                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                    <RadzenIcon Icon="account_circle" Style="font-size: 2rem; color: var(--rz-text-disabled-color);" />
-                    <RadzenStack Gap="0">
-                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 600; margin: 0; color: var(--rz-text-secondary-color);">
-                            No User Selected
-                        </RadzenText>
-                        <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); margin: 0;">
-                            Please select a user to trade
-                        </RadzenText>
-                    </RadzenStack>
-                </RadzenStack>
-            }
+            </RadzenStack>
         </RadzenStack>
     </RadzenStack>
 </div>
-
-@code {
-    protected override void OnInitialized()
-    {
-        SessionService.OnUserChanged += StateHasChanged;
-    }
-
-    public void Dispose()
-    {
-        SessionService.OnUserChanged -= StateHasChanged;
-    }
-}
 
 <style>
     .rz-sidebar {

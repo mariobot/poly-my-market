@@ -94,32 +94,6 @@
                                         </div>
                                     </div>
                                 }
-                                else if (market.Outcomes != null && market.Outcomes.Any())
-                                {
-                                    var outcomePrices = MarketService.GetMultiOutcomePrices(market.Outcomes.ToList());
-                                    <div class="outcome-list">
-                                        @foreach (var outcome in market.Outcomes.OrderBy(o => o.DisplayOrder).Take(3))
-                                        {
-                                            var price = outcomePrices.ContainsKey(outcome.Id) ? outcomePrices[outcome.Id] : 0m;
-                                            <div class="outcome-item p-2 mb-2 bg-light rounded">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <div class="outcome-name small fw-bold text-truncate" style="max-width: 60%;">
-                                                        @outcome.Name
-                                                    </div>
-                                                    <div class="outcome-price">
-                                                        <span class="badge bg-primary">@((price * 100).ToString("F1"))¢</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        }
-                                        @if (market.Outcomes.Count > 3)
-                                        {
-                                            <div class="text-center p-2">
-                                                <small class="text-muted">+@(market.Outcomes.Count - 3) more outcomes</small>
-                                            </div>
-                                        }
-                                    </div>
-                                }
                                 else
                                 {
                                     <div class="text-center p-3 bg-light rounded">
@@ -148,28 +122,6 @@
     .hover-lift:hover {
         transform: translateY(-5px);
         box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-    }
-
-    .outcome-list {
-        max-height: 220px;
-        overflow-y: auto;
-    }
-
-    .outcome-item {
-        transition: background-color 0.2s ease;
-    }
-
-    .outcome-item:hover {
-        background-color: #e9ecef !important;
-    }
-
-    .outcome-name {
-        line-height: 1.4;
-    }
-
-    .outcome-price .badge {
-        font-size: 0.85rem;
-        padding: 0.35rem 0.6rem;
     }
 </style>
 

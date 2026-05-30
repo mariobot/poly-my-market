@@ -1,4 +1,5 @@
 ﻿@page "/user-create"
+@using PolyMyMarket.Models
 @using PolyMyMarket.Web.Services
 @using System.ComponentModel.DataAnnotations
 @using Radzen
@@ -177,8 +178,7 @@
                         </RadzenText>
                     </RadzenStack>
 
-                    <!-- Around line 173 -->
-                    <hr style="margin: 1rem 0; border: none; border-top: 1px solid var(--rz-border-color, #dee2e6);" />
+                    <RadzenDivider />
 
                     <RadzenStack Gap="0.5rem">
                         <RadzenText TextStyle="TextStyle.Subtitle2">Initial Balance:</RadzenText>
@@ -187,7 +187,7 @@
                         </RadzenText>
                     </RadzenStack>
 
-                    <hr style="margin: 1rem 0; border: none; border-top: 1px solid var(--rz-border-color);" />
+                    <RadzenDivider />
 
                     <RadzenStack Gap="0.5rem">
                         <RadzenText TextStyle="TextStyle.Subtitle2">Privacy & Security:</RadzenText>

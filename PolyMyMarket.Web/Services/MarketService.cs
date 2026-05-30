@@ -17,7 +17,6 @@ public class MarketService
     public async Task<List<Market>> GetActiveMarketsAsync()
     {
         return await _context.Markets
-            .Include(m => m.Outcomes.OrderBy(o => o.DisplayOrder))
             .Where(m => m.Status == MarketStatus.Active)
             .OrderByDescending(m => m.CreatedDate)
             .ToListAsync();

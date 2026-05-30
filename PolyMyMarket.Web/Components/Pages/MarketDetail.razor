@@ -1,14 +1,10 @@
 @page "/market/{marketId:int}"
 @using PolyMyMarket.Models
 @using PolyMyMarket.Web.Services
-@using Radzen
 @inject MarketService MarketService
 @inject UserService UserService
-@inject UserSessionService SessionService
 @inject NavigationManager Navigation
-@inject NotificationService NotificationService
 @rendermode InteractiveServer
-@implements IDisposable
 
 <PageTitle>@(market?.Title ?? "Market") - PolyMyMarket</PageTitle>
 
@@ -134,117 +130,6 @@ else
                     </div>
                 </div>
 
-                <!-- Current Position Card -->
-                @if (currentUser != null && currentPosition != null && (currentPosition.YesShares > 0 || currentPosition.NoShares > 0))
-                {
-                    <div class="card shadow-sm mb-4 border-info">
-                        <div class="card-body">
-                            <h5 class="card-title mb-3">
-                                <i class="bi bi-wallet2 me-2"></i>Your Position in This Market
-                            </h5>
-
-                            <div class="row g-3">
-                                @if (market.MarketType == MarketType.Binary)
-                                {
-                                    @if (currentPosition.YesShares > 0)
-                                    {
-                                        <div class="col-md-6">
-                                            <div class="card bg-success bg-opacity-10 border-success">
-                                                <div class="card-body">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <div>
-                                                            <h6 class="text-success mb-1">
-                                                                <i class="bi bi-check-circle-fill me-1"></i>YES Shares
-                                                            </h6>
-                                                            <div class="h4 mb-0 fw-bold">@currentPosition.YesShares.ToString("F2")</div>
-                                                            <small class="text-muted">Avg Price: @((currentPosition.AveragePriceYes * 100).ToString("F1"))¢</small>
-                                                        </div>
-                                                        <div class="text-end">
-                                                            <div class="text-muted small">Current Value</div>
-                                                            <div class="fw-bold">$@((currentPosition.YesShares * yesPrice).ToString("F2"))</div>
-                                                            <div class="small">
-                                                                <span class="badge bg-@((currentPosition.YesShares * yesPrice - currentPosition.TotalInvestedYes) >= 0 ? "success" : "danger")">
-                                                                    @((currentPosition.YesShares * yesPrice - currentPosition.TotalInvestedYes) >= 0 ? "+" : "")$@((currentPosition.YesShares * yesPrice - currentPosition.TotalInvestedYes).ToString("F2"))
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="mt-2 pt-2 border-top">
-                                                        <small class="text-muted">Invested: $@currentPosition.TotalInvestedYes.ToString("F2")</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
-
-                                    @if (currentPosition.NoShares > 0)
-                                    {
-                                        <div class="col-md-6">
-                                            <div class="card bg-danger bg-opacity-10 border-danger">
-                                                <div class="card-body">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <div>
-                                                            <h6 class="text-danger mb-1">
-                                                                <i class="bi bi-x-circle-fill me-1"></i>NO Shares
-                                                            </h6>
-                                                            <div class="h4 mb-0 fw-bold">@currentPosition.NoShares.ToString("F2")</div>
-                                                            <small class="text-muted">Avg Price: @((currentPosition.AveragePriceNo * 100).ToString("F1"))¢</small>
-                                                        </div>
-                                                        <div class="text-end">
-                                                            <div class="text-muted small">Current Value</div>
-                                                            <div class="fw-bold">$@((currentPosition.NoShares * noPrice).ToString("F2"))</div>
-                                                            <div class="small">
-                                                                <span class="badge bg-@((currentPosition.NoShares * noPrice - currentPosition.TotalInvestedNo) >= 0 ? "success" : "danger")">
-                                                                    @((currentPosition.NoShares * noPrice - currentPosition.TotalInvestedNo) >= 0 ? "+" : "")$@((currentPosition.NoShares * noPrice - currentPosition.TotalInvestedNo).ToString("F2"))
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="mt-2 pt-2 border-top">
-                                                        <small class="text-muted">Invested: $@currentPosition.TotalInvestedNo.ToString("F2")</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
-                                }
-
-                                <!-- Total Summary -->
-                                <div class="col-12">
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <div class="row text-center">
-                                                <div class="col-4">
-                                                    <div class="text-muted small">Total Shares</div>
-                                                    <div class="h5 mb-0 fw-bold">@currentPosition.TotalShares.ToString("F2")</div>
-                                                </div>
-                                                <div class="col-4">
-                                                    <div class="text-muted small">Total Invested</div>
-                                                    <div class="h5 mb-0 fw-bold">$@currentPosition.TotalInvested.ToString("F2")</div>
-                                                </div>
-                                                <div class="col-4">
-                                                    <div class="text-muted small">Current Value</div>
-                                                    <div class="h5 mb-0 fw-bold">$@currentPosition.CalculateCurrentValue(yesPrice, noPrice).ToString("F2")</div>
-                                                </div>
-                                            </div>
-                                            <hr class="my-2" />
-                                            <div class="text-center">
-                                                <div class="text-muted small">Profit/Loss</div>
-                                                <div class="h4 mb-0 fw-bold text-@(currentPosition.CalculateProfitLoss(yesPrice, noPrice) >= 0 ? "success" : "danger")">
-                                                    @(currentPosition.CalculateProfitLoss(yesPrice, noPrice) >= 0 ? "+" : "")$@currentPosition.CalculateProfitLoss(yesPrice, noPrice).ToString("F2")
-                                                    <small class="ms-2">
-                                                        (@(currentPosition.CalculateProfitLoss(yesPrice, noPrice) >= 0 ? "+" : "")@(currentPosition.TotalInvested > 0 ? ((currentPosition.CalculateProfitLoss(yesPrice, noPrice) / currentPosition.TotalInvested) * 100).ToString("F1") : "0.0")%)
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                }
-
                 <!-- Order Form -->
                 @if (market.Status == MarketStatus.Active)
                 {
@@ -333,18 +218,9 @@ else
                                 </button>
                             </div>
 
-                            @if (currentUser != null)
-                            {
-                                <div class="text-muted small mt-3">
-                                    <strong>Current User Balance:</strong> $@currentUser.Balance.ToString("F2")
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="alert alert-warning small mt-3" role="alert">
-                                    <i class="bi bi-exclamation-triangle"></i> Please select a user from the <a href="/users">Users page</a> to trade
-                                </div>
-                            }
+                            <div class="text-muted small mt-3">
+                                <strong>Current User Balance:</strong> $@currentUser.Balance.ToString("F2")
+                            </div>
                         </div>
                     </div>
                 }
@@ -413,9 +289,8 @@ else
     public int MarketId { get; set; }
 
     private Market? market;
-    private User? currentUser;
+    private User currentUser = new User { Id = 1, Email = "demo@polymarket.com", Balance = 10000m };
     private List<Order>? recentOrders;
-    private Position? currentPosition;
 
     // Binary market fields
     private decimal yesPrice;
@@ -435,10 +310,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        SessionService.OnUserChanged += HandleUserChanged;
         await LoadMarket();
         await LoadCurrentUser();
-        await LoadCurrentPosition();
     }
 
     protected override async Task OnParametersSetAsync()
@@ -473,29 +346,11 @@ else
 
     private async Task LoadCurrentUser()
     {
-        if (SessionService.CurrentUser != null)
+        // For demo purposes, using hardcoded user ID 1
+        var user = await UserService.GetUserByIdAsync(1);
+        if (user != null)
         {
-            var user = await UserService.GetUserByIdAsync(SessionService.CurrentUser.Id);
-            if (user != null)
-            {
-                currentUser = user;
-            }
-        }
-        else
-        {
-            currentUser = null;
-        }
-    }
-
-    private async Task LoadCurrentPosition()
-    {
-        if (currentUser != null && market != null)
-        {
-            currentPosition = await UserService.GetUserPositionForMarketAsync(currentUser.Id, market.Id);
-        }
-        else
-        {
-            currentPosition = null;
+            currentUser = user;
         }
     }
 
@@ -511,18 +366,6 @@ else
     {
         if (market == null || shares <= 0)
             return;
-
-        if (currentUser == null)
-        {
-            NotificationService.Notify(new NotificationMessage
-            {
-                Severity = NotificationSeverity.Warning,
-                Summary = "No User Selected",
-                Detail = "Please select a user from the Users page to place an order",
-                Duration = 4000
-            });
-            return;
-        }
 
         isProcessing = true;
         ClearMessage();
@@ -552,7 +395,6 @@ else
                 // Reload data
                 await LoadMarket();
                 await LoadCurrentUser();
-                await LoadCurrentPosition();
 
                 // Reset form
                 shares = 10;
@@ -572,17 +414,5 @@ else
     private void ClearMessage()
     {
         orderMessage = string.Empty;
-    }
-
-    private async void HandleUserChanged()
-    {
-        await LoadCurrentUser();
-        await LoadCurrentPosition();
-        StateHasChanged();
-    }
-
-    public void Dispose()
-    {
-        SessionService.OnUserChanged -= HandleUserChanged;
     }
 }

@@ -1,31 +1,115 @@
-﻿<script type="module" src="@Assets["Components/Layout/ReconnectModal.razor.js"]"></script>
+﻿@using Radzen
+@using Radzen.Blazor
+
+<script type="module" src="@Assets["Components/Layout/ReconnectModal.razor.js"]"></script>
 
 <dialog id="components-reconnect-modal" data-nosnippet>
-    <div class="components-reconnect-container">
-        <div class="components-rejoining-animation" aria-hidden="true">
-            <div></div>
-            <div></div>
-        </div>
-        <p class="components-reconnect-first-attempt-visible">
-            Rejoining the server...
-        </p>
-        <p class="components-reconnect-repeated-attempt-visible">
-            Rejoin failed... trying again in <span id="components-seconds-to-next-attempt"></span> seconds.
-        </p>
-        <p class="components-reconnect-failed-visible">
-            Failed to rejoin.<br />Please retry or reload the page.
-        </p>
-        <button id="components-reconnect-button" class="components-reconnect-failed-visible">
-            Retry
-        </button>
-        <p class="components-pause-visible">
-            The session has been paused by the server.
-        </p>
-        <p class="components-resume-failed-visible">
-            Failed to resume the session.<br />Please retry or reload the page.
-        </p>
-        <button id="components-resume-button" class="components-pause-visible components-resume-failed-visible">
-            Resume
-        </button>
-    </div>
+    <RadzenCard class="components-reconnect-container" Style="border: none; box-shadow: var(--rz-shadow-10); max-width: 500px;">
+        <RadzenStack Gap="1rem" AlignItems="AlignItems.Center">
+            <!-- Rejoining Animation -->
+            <div class="components-rejoining-animation" aria-hidden="true">
+                <RadzenProgressBarCircular ShowValue="false" 
+                                          Mode="ProgressBarMode.Indeterminate" 
+                                          Size="ProgressBarCircularSize.Large"
+                                          Style="width: 80px; height: 80px;" />
+            </div>
+
+            <!-- First Attempt Message -->
+            <RadzenStack class="components-reconnect-first-attempt-visible" Gap="0.5rem" AlignItems="AlignItems.Center">
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
+                    Rejoining the server...
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                    Please wait while we reconnect
+                </RadzenText>
+            </RadzenStack>
+
+            <!-- Repeated Attempt Message -->
+            <RadzenStack class="components-reconnect-repeated-attempt-visible" Gap="0.5rem" AlignItems="AlignItems.Center">
+                <RadzenIcon Icon="warning" Style="font-size: 3rem; color: var(--rz-warning);" />
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
+                    Rejoin failed
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary" Style="text-align: center;">
+                    Trying again in <span id="components-seconds-to-next-attempt"></span> seconds...
+                </RadzenText>
+            </RadzenStack>
+
+            <!-- Failed Message -->
+            <RadzenStack class="components-reconnect-failed-visible" Gap="1rem" AlignItems="AlignItems.Center">
+                <RadzenIcon Icon="error" Style="font-size: 3rem; color: var(--rz-danger);" />
+                <RadzenStack Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
+                        Failed to rejoin
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary" Style="text-align: center;">
+                        Please retry or reload the page
+                    </RadzenText>
+                </RadzenStack>
+                <RadzenButton id="components-reconnect-button" 
+                             Text="Retry Connection" 
+                             Icon="refresh"
+                             ButtonStyle="ButtonStyle.Primary" 
+                             Size="ButtonSize.Large" 
+                             Style="width: 200px;" />
+            </RadzenStack>
+
+            <!-- Paused Message -->
+            <RadzenStack class="components-pause-visible" Gap="1rem" AlignItems="AlignItems.Center">
+                <RadzenIcon Icon="pause_circle" Style="font-size: 3rem; color: var(--rz-info);" />
+                <RadzenStack Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
+                        Session Paused
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary" Style="text-align: center;">
+                        The session has been paused by the server
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenStack>
+
+            <!-- Resume Failed Message -->
+            <RadzenStack class="components-resume-failed-visible" Gap="1rem" AlignItems="AlignItems.Center">
+                <RadzenIcon Icon="error" Style="font-size: 3rem; color: var(--rz-danger);" />
+                <RadzenStack Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
+                        Failed to resume
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary" Style="text-align: center;">
+                        Please retry or reload the page
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenStack>
+
+            <!-- Resume Button -->
+            <RadzenButton id="components-resume-button" 
+                         class="components-pause-visible components-resume-failed-visible"
+                         Text="Resume Session" 
+                         Icon="play_arrow"
+                         ButtonStyle="ButtonStyle.Success" 
+                         Size="ButtonSize.Large" 
+                         Style="width: 200px;" />
+        </RadzenStack>
+    </RadzenCard>
 </dialog>
+
+<style>
+    #components-reconnect-modal {
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+    }
+
+    #components-reconnect-modal::backdrop {
+        background: rgba(0, 0, 0, 0.5);
+    }
+
+    .components-reconnect-container {
+        min-width: 400px;
+        padding: 2rem !important;
+    }
+
+    .components-rejoining-animation {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>

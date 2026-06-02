@@ -366,7 +366,19 @@ else
                                 @foreach (var order in recentOrders)
                                 {
                                     <div class="order-item mb-3 pb-3 border-bottom">
-                                        <div class="d-flex justify-content-between align-items-start">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i class="bi bi-person-circle" style="font-size: 1.5rem; color: var(--bs-primary);"></i>
+                                                <div>
+                                                    <div class="fw-bold">@order.User.Name</div>
+                                                    <div class="small text-muted">@order.User.Email</div>
+                                                </div>
+                                            </div>
+                                            <span class="small text-muted">
+                                                @order.Timestamp.ToLocalTime().ToString("MMM dd, HH:mm:ss")
+                                            </span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
                                             <div>
                                                 <span class="badge bg-@(order.OrderType == OrderType.Buy ? "primary" : "warning")">
                                                     @order.OrderType
@@ -375,9 +387,6 @@ else
                                                     @order.Outcome
                                                 </span>
                                             </div>
-                                            <span class="small text-muted">
-                                                @order.Timestamp.ToLocalTime().ToString("HH:mm:ss")
-                                            </span>
                                         </div>
                                         <div class="mt-2">
                                             <strong>@order.Shares.ToString("F2")</strong> shares at 

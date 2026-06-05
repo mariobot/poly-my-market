@@ -24,9 +24,6 @@ builder.Services.AddDbContext<MarketContext>(options =>
     // For SQL Server:
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 
-    // For SQLite (development):
-    // options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
-
     // For InMemory (testing):
     //options.UseInMemoryDatabase("PolyMyMarketDb");
 });
@@ -41,6 +38,9 @@ builder.Services.AddScoped<CommandDispatcher>();
 builder.Services.AddScoped<ICommandHandler<CreateMarketCommand, CommandResult<int>>, CreateMarketCommandHandler>();
 builder.Services.AddScoped<ICommandHandler<PlaceBuyOrderCommand, CommandResult>, PlaceBuyOrderCommandHandler>();
 builder.Services.AddScoped<ICommandHandler<PlaceSellOrderCommand, CommandResult>, PlaceSellOrderCommandHandler>();
+builder.Services.AddScoped<ICommandHandler<ResolveMarketCommand, CommandResult>, ResolveMarketCommandHandler>();
+builder.Services.AddScoped<ICommandHandler<PlaceMultiOutcomeBuyOrderCommand, CommandResult>, PlaceMultiOutcomeBuyOrderCommandHandler>();
+builder.Services.AddScoped<ICommandHandler<PlaceMultiOutcomeSellOrderCommand, CommandResult>, PlaceMultiOutcomeSellOrderCommandHandler>();
 
 // Register command handlers - User
 builder.Services.AddScoped<ICommandHandler<GetOrCreateUserCommand, CommandResult<int>>, GetOrCreateUserCommandHandler>();

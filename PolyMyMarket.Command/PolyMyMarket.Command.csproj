@@ -15,4 +15,8 @@
     <ProjectReference Include="..\PolyMyMarket.Context\PolyMyMarket.Context.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Order\" />
+  </ItemGroup>
+
 </Project>

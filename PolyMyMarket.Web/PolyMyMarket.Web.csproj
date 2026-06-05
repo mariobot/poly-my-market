@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PolyMyMarket.Context\PolyMyMarket.Context.csproj" />
+    <ProjectReference Include="..\PolyMyMarket.Command\PolyMyMarket.Command.csproj" />
   </ItemGroup>
 
 </Project>

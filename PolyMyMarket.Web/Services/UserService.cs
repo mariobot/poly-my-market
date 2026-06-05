@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using PolyMyMarket.Context;
 using PolyMyMarket.Models;
+using PolyMyMarket.Command.Common;
+using PolyMyMarket.Command.User;
 
 namespace PolyMyMarket.Web.Services;
 
@@ -8,33 +10,36 @@ public class UserService
 {
     private readonly MarketContext _context;
     private readonly MarketService _marketService;
+    private readonly CommandDispatcher _commandDispatcher;
 
-    public UserService(MarketContext context, MarketService marketService)
+    public UserService(MarketContext context, MarketService marketService, CommandDispatcher commandDispatcher)
     {
         _context = context;
         _marketService = marketService;
+        _commandDispatcher = commandDispatcher;
     }
 
     // Get or create user by email
     public async Task<User> GetOrCreateUserAsync(string email, string name)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-
-        if (user == null)
+        var command = new GetOrCreateUserCommand
         {
-            user = new User
-            {
-                Email = email,
-                Name = name,
-                Balance = 10000m, // Starting balance
-                CreatedDate = DateTime.UtcNow
-            };
+            Email = email,
+            Name = name,
+            InitialBalance = 10000m
+        };
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+        var result = await _commandDispatcher.ExecuteAsync<GetOrCreateUserCommand, CommandResult<int>>(command);
+
+        if (result.Success)
+        {
+            // Fetch and return the user
+            var user = await _context.Users.FindAsync(result.Data);
+            return user!;
         }
 
-        return user;
+        // Fallback (should not happen with valid command)
+        throw new InvalidOperationException($"Failed to get or create user: {result.Message}");
     }
 
     // Get user by ID
@@ -46,12 +51,13 @@ public class UserService
     // Update user balance
     public async Task UpdateUserBalanceAsync(int userId, decimal newBalance)
     {
-        var user = await _context.Users.FindAsync(userId);
-        if (user != null)
+        var command = new UpdateUserBalanceCommand
         {
-            user.Balance = newBalance;
-            await _context.SaveChangesAsync();
-        }
+            UserId = userId,
+            NewBalance = newBalance
+        };
+
+        await _commandDispatcher.ExecuteAsync<UpdateUserBalanceCommand, CommandResult>(command);
     }
 
     // Get all users
@@ -65,67 +71,28 @@ public class UserService
     // Update user details
     public async Task<(bool success, string message)> UpdateUserAsync(int userId, string name, string email, decimal balance)
     {
-        try
+        var command = new UpdateUserCommand
         {
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-            {
-                return (false, "User not found");
-            }
+            UserId = userId,
+            Name = name,
+            Email = email,
+            Balance = balance
+        };
 
-            // Check if email is being changed to one that already exists
-            if (user.Email != email)
-            {
-                var existingUser = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Email == email && u.Id != userId);
-                if (existingUser != null)
-                {
-                    return (false, "Email already exists");
-                }
-            }
-
-            user.Name = name;
-            user.Email = email;
-            user.Balance = balance;
-
-            await _context.SaveChangesAsync();
-            return (true, "User updated successfully");
-        }
-        catch (Exception ex)
-        {
-            return (false, $"Error updating user: {ex.Message}");
-        }
+        var result = await _commandDispatcher.ExecuteAsync<UpdateUserCommand, CommandResult>(command);
+        return (result.Success, result.Message);
     }
 
     // Delete user
     public async Task<(bool success, string message)> DeleteUserAsync(int userId)
     {
-        try
+        var command = new DeleteUserCommand
         {
-            var user = await _context.Users
-                .Include(u => u.Orders)
-                .Include(u => u.Positions)
-                .FirstOrDefaultAsync(u => u.Id == userId);
+            UserId = userId
+        };
 
-            if (user == null)
-            {
-                return (false, "User not found");
-            }
-
-            // Check if user has active positions
-            if (user.Positions.Any(p => p.YesShares > 0 || p.NoShares > 0))
-            {
-                return (false, "Cannot delete user with active positions");
-            }
-
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
-            return (true, "User deleted successfully");
-        }
-        catch (Exception ex)
-        {
-            return (false, $"Error deleting user: {ex.Message}");
-        }
+        var result = await _commandDispatcher.ExecuteAsync<DeleteUserCommand, CommandResult>(command);
+        return (result.Success, result.Message);
     }
 
     // Get user positions with current values

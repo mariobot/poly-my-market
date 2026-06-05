@@ -1,16 +1,20 @@
 using Microsoft.EntityFrameworkCore;
 using PolyMyMarket.Context;
 using PolyMyMarket.Models;
+using PolyMyMarket.Command.Common;
+using PolyMyMarket.Command.Market;
 
 namespace PolyMyMarket.Web.Services;
 
 public class MarketService
 {
     private readonly MarketContext _context;
+    private readonly CommandDispatcher _commandDispatcher;
 
-    public MarketService(MarketContext context)
+    public MarketService(MarketContext context, CommandDispatcher commandDispatcher)
     {
         _context = context;
+        _commandDispatcher = commandDispatcher;
     }
 
     // Get all active markets
@@ -96,131 +100,31 @@ public class MarketService
     // Place a buy order
     public async Task<(bool success, string message)> PlaceBuyOrderAsync(int marketId, int userId, Outcome outcome, decimal shares)
     {
-        var market = await _context.Markets.FindAsync(marketId);
-        if (market == null)
-            return (false, "Market not found");
-
-        if (market.Status != MarketStatus.Active)
-            return (false, "Market is not active");
-
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null)
-            return (false, "User not found");
-
-        // Calculate cost
-        decimal cost = CalculateBuyCost(market, outcome, shares);
-
-        if (user.Balance < cost)
-            return (false, $"Insufficient balance. Cost: ${cost:F2}, Balance: ${user.Balance:F2}");
-
-        var (yesPrice, noPrice) = GetCurrentPrices(market);
-        decimal price = outcome == Outcome.Yes ? yesPrice : noPrice;
-
-        // Create order
-        var order = new Order
+        var command = new PlaceBuyOrderCommand
         {
             MarketId = marketId,
             UserId = userId,
             Outcome = outcome,
-            Shares = shares,
-            Price = price,
-            OrderType = OrderType.Buy,
-            TotalCost = cost,
-            Timestamp = DateTime.UtcNow
+            Shares = shares
         };
 
-        _context.Orders.Add(order);
-
-        // Update user balance
-        user.Balance -= cost;
-
-        // Update market pools
-        if (outcome == Outcome.Yes)
-        {
-            market.YesPool += shares;
-            market.NoPool -= cost;
-        }
-        else
-        {
-            market.NoPool += shares;
-            market.YesPool -= cost;
-        }
-
-        // Update or create position
-        await UpdatePositionAsync(userId, marketId, outcome, shares, cost, true);
-
-        await _context.SaveChangesAsync();
-
-        return (true, $"Successfully bought {shares} {outcome} shares for ${cost:F2}");
+        var result = await _commandDispatcher.ExecuteAsync<PlaceBuyOrderCommand, CommandResult>(command);
+        return (result.Success, result.Message);
     }
 
     // Place a sell order
     public async Task<(bool success, string message)> PlaceSellOrderAsync(int marketId, int userId, Outcome outcome, decimal shares)
     {
-        var market = await _context.Markets.FindAsync(marketId);
-        if (market == null)
-            return (false, "Market not found");
-
-        if (market.Status != MarketStatus.Active)
-            return (false, "Market is not active");
-
-        var position = await _context.Positions
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.MarketId == marketId);
-
-        if (position == null)
-            return (false, "You don't have a position in this market");
-
-        decimal availableShares = outcome == Outcome.Yes ? position.YesShares : position.NoShares;
-
-        if (availableShares < shares)
-            return (false, $"Insufficient shares. You have {availableShares} {outcome} shares");
-
-        // Calculate proceeds
-        decimal proceeds = CalculateSellProceeds(market, outcome, shares);
-
-        var (yesPrice, noPrice) = GetCurrentPrices(market);
-        decimal price = outcome == Outcome.Yes ? yesPrice : noPrice;
-
-        // Create order
-        var order = new Order
+        var command = new PlaceSellOrderCommand
         {
             MarketId = marketId,
             UserId = userId,
             Outcome = outcome,
-            Shares = shares,
-            Price = price,
-            OrderType = OrderType.Sell,
-            TotalCost = proceeds,
-            Timestamp = DateTime.UtcNow
+            Shares = shares
         };
 
-        _context.Orders.Add(order);
-
-        // Update user balance
-        var user = await _context.Users.FindAsync(userId);
-        if (user != null)
-        {
-            user.Balance += proceeds;
-        }
-
-        // Update market pools
-        if (outcome == Outcome.Yes)
-        {
-            market.YesPool -= shares;
-            market.NoPool += proceeds;
-        }
-        else
-        {
-            market.NoPool -= shares;
-            market.YesPool += proceeds;
-        }
-
-        // Update position
-        await UpdatePositionAsync(userId, marketId, outcome, shares, proceeds, false);
-
-        await _context.SaveChangesAsync();
-
-        return (true, $"Successfully sold {shares} {outcome} shares for ${proceeds:F2}");
+        var result = await _commandDispatcher.ExecuteAsync<PlaceSellOrderCommand, CommandResult>(command);
+        return (result.Success, result.Message);
     }
 
     // Update user position
@@ -335,36 +239,21 @@ public class MarketService
     // Create a new market
     public async Task<(bool success, string message, int marketId)> CreateMarketAsync(Market market)
     {
-        try
+        var command = new CreateMarketCommand
         {
-            // Validate market data
-            if (string.IsNullOrWhiteSpace(market.Title))
-                return (false, "Market title is required", 0);
+            Title = market.Title,
+            Description = market.Description,
+            Category = market.Category,
+            EndDate = market.EndDate,
+            InitialLiquidity = market.InitialLiquidity,
+            MarketType = market.MarketType,
+            OutcomeNames = market.MarketType == MarketType.MultiOutcome 
+                ? market.Outcomes?.Select(o => o.Name).ToList() 
+                : null
+        };
 
-            if (string.IsNullOrWhiteSpace(market.Description))
-                return (false, "Market description is required", 0);
-
-            if (market.EndDate <= DateTime.UtcNow)
-                return (false, "End date must be in the future", 0);
-
-            if (market.InitialLiquidity < 100)
-                return (false, "Initial liquidity must be at least $100", 0);
-
-            // Ensure pools are balanced
-            market.YesPool = market.InitialLiquidity / 2;
-            market.NoPool = market.InitialLiquidity / 2;
-            market.Status = MarketStatus.Active;
-            market.CreatedDate = DateTime.UtcNow;
-
-            _context.Markets.Add(market);
-            await _context.SaveChangesAsync();
-
-            return (true, "Market created successfully", market.Id);
-        }
-        catch (Exception ex)
-        {
-            return (false, $"Error creating market: {ex.Message}", 0);
-        }
+        var result = await _commandDispatcher.ExecuteAsync<CreateMarketCommand, CommandResult<int>>(command);
+        return (result.Success, result.Message, result.Data);
     }
 
     // ==================== MULTI-OUTCOME MARKET METHODS ====================

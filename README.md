@@ -62,7 +62,11 @@ PolyMyMarket/
 │   │   └── Pages/            # Page components
 │   │       ├── Market/       # Market-related pages
 │   │       └── UserOptions/  # User management pages
-│   └── Services/             # Business logic services
+│   └── Services/             # Business logic services & CommandDispatcher
+├── PolyMyMarket.Command/      # CQRS Command layer (write operations)
+│   ├── Common/               # Command infrastructure (ICommand, ICommandHandler, CommandResult)
+│   ├── Market/               # Market write commands and handlers
+│   └── User/                 # User write commands and handlers
 ├── PolyMyMarket.Models/       # Domain models and entities
 ├── PolyMyMarket.Context/      # Entity Framework Core context and migrations
 └── Resources/                 # Screenshots and visual assets
@@ -74,7 +78,10 @@ PolyMyMarket/
 - **UI**: Blazor Server with InteractiveAuto rendering
 - **Component Library**: Radzen Blazor Components
 - **Database**: Entity Framework Core with SQL Server
-- **Architecture**: Service-oriented with dependency injection
+- **Architecture**: CQRS-lite pattern with command/query separation
+  - **Commands**: Write operations isolated in `PolyMyMarket.Command` project
+  - **Queries**: Read operations in service layer
+  - **CommandDispatcher**: Centralized command execution via DI
 
 ## 🚀 Getting Started
 
@@ -114,15 +121,6 @@ PolyMyMarket/
 6. Open your browser and navigate to `https://localhost:5001`
 
 ## 📦 Key Components
-
-### Services
-
-- **MarketService**: Handles market data, pricing, and order execution
-- **UserService**: Manages user data, positions, and portfolio statistics
-- **UserSessionService**: Maintains active user state across the application
-
-### Pages
-
 - **Home**: Landing page with quick access to features
 - **Markets**: Browse and filter prediction markets
 - **MarketDetail**: Trade on individual markets
@@ -144,7 +142,8 @@ PolyMyMarket/
 - **MarketOutcomes**: Outcomes for multi-outcome markets
 - **Users**: User accounts and balances
 - **Orders**: Trading history
-- **Positions**: Current user holdings
+- **Positions**: Binary market holdings (YesShares, NoShares)
+- **OutcomePositions**: Multi-outcome market holdings
 
 ## 🤝 Contributing
 
@@ -161,6 +160,6 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ---
 
-*Built with ❤️ using Blazor and Radzen*
+*Built with ❤️ using Blazor, Radzen, and CQRS architecture*
 
-*Last Updated: June 4, 2026*
+*Last Updated: December 2024*

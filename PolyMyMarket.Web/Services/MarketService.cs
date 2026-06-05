@@ -206,34 +206,14 @@ public class MarketService
     // Resolve a market (admin function)
     public async Task<(bool success, string message)> ResolveMarketAsync(int marketId, bool outcome)
     {
-        var market = await _context.Markets
-            .Include(m => m.Positions)
-            .FirstOrDefaultAsync(m => m.Id == marketId);
-
-        if (market == null)
-            return (false, "Market not found");
-
-        if (market.Status == MarketStatus.Resolved)
-            return (false, "Market already resolved");
-
-        market.Status = MarketStatus.Resolved;
-        market.ResolvedOutcome = outcome;
-        market.ResolutionDate = DateTime.UtcNow;
-
-        // Pay out winning positions
-        foreach (var position in market.Positions)
+        var command = new ResolveMarketCommand
         {
-            var user = await _context.Users.FindAsync(position.UserId);
-            if (user != null)
-            {
-                decimal payout = outcome ? position.YesShares : position.NoShares;
-                user.Balance += payout;
-            }
-        }
+            MarketId = marketId,
+            Outcome = outcome
+        };
 
-        await _context.SaveChangesAsync();
-
-        return (true, $"Market resolved to {(outcome ? "Yes" : "No")}. Payouts distributed.");
+        var result = await _commandDispatcher.ExecuteAsync<ResolveMarketCommand, CommandResult>(command);
+        return (result.Success, result.Message);
     }
 
     // Create a new market
@@ -318,129 +298,32 @@ public class MarketService
     public async Task<(bool success, string message)> PlaceMultiOutcomeBuyOrderAsync(
         int marketId, int userId, int outcomeId, decimal shares)
     {
-        var market = await GetMarketWithOutcomesAsync(marketId);
-        if (market == null)
-            return (false, "Market not found");
-
-        if (market.Status != MarketStatus.Active)
-            return (false, "Market is not active");
-
-        if (market.MarketType != MarketType.MultiOutcome)
-            return (false, "This market is not a multi-outcome market");
-
-        var outcome = market.Outcomes.FirstOrDefault(o => o.Id == outcomeId);
-        if (outcome == null)
-            return (false, "Outcome not found");
-
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null)
-            return (false, "User not found");
-
-        // Calculate cost
-        decimal cost = CalculateMultiOutcomeBuyCost(market.Outcomes.ToList(), outcomeId, shares);
-
-        if (user.Balance < cost)
-            return (false, $"Insufficient balance. Cost: ${cost:F2}, Balance: ${user.Balance:F2}");
-
-        var prices = GetMultiOutcomePrices(market.Outcomes.ToList());
-        decimal price = prices.GetValueOrDefault(outcomeId, 0.5m);
-
-        // Create order
-        var order = new Order
+        var command = new PlaceMultiOutcomeBuyOrderCommand
         {
             MarketId = marketId,
             UserId = userId,
             MarketOutcomeId = outcomeId,
-            Outcome = null, // Multi-outcome markets don't use the legacy enum
-            Shares = shares,
-            Price = price,
-            OrderType = OrderType.Buy,
-            TotalCost = cost,
-            Timestamp = DateTime.UtcNow
+            Shares = shares
         };
 
-        _context.Orders.Add(order);
-
-        // Update user balance
-        user.Balance -= cost;
-
-        // Update outcome liquidity pool (add cost to this outcome's pool)
-        outcome.LiquidityPool += cost;
-
-        // Update or create outcome position
-        await UpdateOutcomePositionAsync(userId, outcomeId, shares, cost, true);
-
-        await _context.SaveChangesAsync();
-
-        return (true, $"Successfully bought {shares} shares of '{outcome.Name}' for ${cost:F2}");
+        var result = await _commandDispatcher.ExecuteAsync<PlaceMultiOutcomeBuyOrderCommand, CommandResult>(command);
+        return (result.Success, result.Message);
     }
 
     // Place sell order for multi-outcome market
     public async Task<(bool success, string message)> PlaceMultiOutcomeSellOrderAsync(
         int marketId, int userId, int outcomeId, decimal shares)
     {
-        var market = await GetMarketWithOutcomesAsync(marketId);
-        if (market == null)
-            return (false, "Market not found");
-
-        if (market.Status != MarketStatus.Active)
-            return (false, "Market is not active");
-
-        if (market.MarketType != MarketType.MultiOutcome)
-            return (false, "This market is not a multi-outcome market");
-
-        var outcome = market.Outcomes.FirstOrDefault(o => o.Id == outcomeId);
-        if (outcome == null)
-            return (false, "Outcome not found");
-
-        // Check position
-        var position = await _context.OutcomePositions
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.MarketOutcomeId == outcomeId);
-
-        if (position == null || position.Shares < shares)
-            return (false, $"Insufficient shares. You have {position?.Shares ?? 0} shares");
-
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null)
-            return (false, "User not found");
-
-        // Calculate proceeds (simple: current price * shares)
-        var prices = GetMultiOutcomePrices(market.Outcomes.ToList());
-        decimal price = prices.GetValueOrDefault(outcomeId, 0.5m);
-        decimal proceeds = Math.Round(shares * price, 2);
-
-        // Ensure outcome has enough liquidity to pay out
-        if (outcome.LiquidityPool < proceeds)
-            proceeds = outcome.LiquidityPool;
-
-        // Create order
-        var order = new Order
+        var command = new PlaceMultiOutcomeSellOrderCommand
         {
             MarketId = marketId,
             UserId = userId,
             MarketOutcomeId = outcomeId,
-            Outcome = null,
-            Shares = shares,
-            Price = price,
-            OrderType = OrderType.Sell,
-            TotalCost = proceeds,
-            Timestamp = DateTime.UtcNow
+            Shares = shares
         };
 
-        _context.Orders.Add(order);
-
-        // Update user balance
-        user.Balance += proceeds;
-
-        // Update outcome liquidity pool
-        outcome.LiquidityPool -= proceeds;
-
-        // Update outcome position
-        await UpdateOutcomePositionAsync(userId, outcomeId, shares, proceeds, false);
-
-        await _context.SaveChangesAsync();
-
-        return (true, $"Successfully sold {shares} shares of '{outcome.Name}' for ${proceeds:F2}");
+        var result = await _commandDispatcher.ExecuteAsync<PlaceMultiOutcomeSellOrderCommand, CommandResult>(command);
+        return (result.Success, result.Message);
     }
 
     // Update user outcome position

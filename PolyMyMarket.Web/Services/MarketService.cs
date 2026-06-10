@@ -1,8 +1,8 @@
-using Microsoft.EntityFrameworkCore;
 using PolyMyMarket.Context;
 using PolyMyMarket.Models;
 using PolyMyMarket.Command.Common;
 using PolyMyMarket.Command.Market;
+using PolyMyMarket.Querie.Queries.Market;
 
 namespace PolyMyMarket.Web.Services;
 
@@ -10,29 +10,25 @@ public class MarketService
 {
     private readonly MarketContext _context;
     private readonly CommandDispatcher _commandDispatcher;
+    private readonly QueryDispatcher _queryDispatcher;
 
-    public MarketService(MarketContext context, CommandDispatcher commandDispatcher)
+    public MarketService(MarketContext context, CommandDispatcher commandDispatcher, QueryDispatcher queryDispatcher)
     {
         _context = context;
         _commandDispatcher = commandDispatcher;
+        _queryDispatcher = queryDispatcher;
     }
 
     // Get all active markets
     public async Task<List<Market>> GetActiveMarketsAsync()
     {
-        return await _context.Markets
-            .Include(m => m.Outcomes.OrderBy(o => o.DisplayOrder))
-            .Where(m => m.Status == MarketStatus.Active)
-            .OrderByDescending(m => m.CreatedDate)
-            .ToListAsync();
+        return await _queryDispatcher.ExecuteAsync<GetActiveMarketsQuery, List<Market>>(new GetActiveMarketsQuery());
     }
 
     // Get market by ID
     public async Task<Market?> GetMarketByIdAsync(int marketId)
     {
-        return await _context.Markets
-            .Include(m => m.Orders.OrderByDescending(o => o.Timestamp).Take(20))
-            .FirstOrDefaultAsync(m => m.Id == marketId);
+        return await _queryDispatcher.ExecuteAsync<GetMarketByIdQuery, Market?>(new GetMarketByIdQuery(marketId));
     }
 
     // Calculate current market prices using Constant Product Market Maker (CPMM) formula
@@ -127,80 +123,10 @@ public class MarketService
         return (result.Success, result.Message);
     }
 
-    // Update user position
-    private async Task UpdatePositionAsync(int userId, int marketId, Outcome outcome, decimal shares, decimal amount, bool isBuy)
-    {
-        var position = await _context.Positions
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.MarketId == marketId);
-
-        if (position == null)
-        {
-            // Create new position
-            position = new Position
-            {
-                UserId = userId,
-                MarketId = marketId,
-                YesShares = outcome == Outcome.Yes && isBuy ? shares : 0,
-                NoShares = outcome == Outcome.No && isBuy ? shares : 0,
-                AveragePriceYes = outcome == Outcome.Yes && isBuy ? amount / shares : 0,
-                AveragePriceNo = outcome == Outcome.No && isBuy ? amount / shares : 0,
-                TotalInvestedYes = outcome == Outcome.Yes && isBuy ? amount : 0,
-                TotalInvestedNo = outcome == Outcome.No && isBuy ? amount : 0,
-                LastUpdated = DateTime.UtcNow
-            };
-            _context.Positions.Add(position);
-        }
-        else
-        {
-            // Update existing position
-            if (isBuy)
-            {
-                if (outcome == Outcome.Yes)
-                {
-                    decimal oldTotal = position.YesShares * position.AveragePriceYes;
-                    position.YesShares += shares;
-                    position.TotalInvestedYes += amount;
-                    position.AveragePriceYes = position.TotalInvestedYes / position.YesShares;
-                }
-                else
-                {
-                    decimal oldTotal = position.NoShares * position.AveragePriceNo;
-                    position.NoShares += shares;
-                    position.TotalInvestedNo += amount;
-                    position.AveragePriceNo = position.TotalInvestedNo / position.NoShares;
-                }
-            }
-            else // sell
-            {
-                if (outcome == Outcome.Yes)
-                {
-                    decimal percentSold = shares / position.YesShares;
-                    position.YesShares -= shares;
-                    position.TotalInvestedYes -= position.TotalInvestedYes * percentSold;
-                    // Average price stays the same
-                }
-                else
-                {
-                    decimal percentSold = shares / position.NoShares;
-                    position.NoShares -= shares;
-                    position.TotalInvestedNo -= position.TotalInvestedNo * percentSold;
-                    // Average price stays the same
-                }
-            }
-
-            position.LastUpdated = DateTime.UtcNow;
-        }
-    }
-
-    // Get recent orders for a market
+    // Get recent orders
     public async Task<List<Order>> GetRecentOrdersAsync(int marketId, int count = 20)
     {
-        return await _context.Orders
-            .Where(o => o.MarketId == marketId)
-            .OrderByDescending(o => o.Timestamp)
-            .Take(count)
-            .Include(o => o.User)
-            .ToListAsync();
+        return await _queryDispatcher.ExecuteAsync<GetRecentOrdersQuery, List<Order>>(new GetRecentOrdersQuery(marketId, count));
     }
 
     // Resolve a market (admin function)
@@ -227,8 +153,8 @@ public class MarketService
             EndDate = market.EndDate,
             InitialLiquidity = market.InitialLiquidity,
             MarketType = market.MarketType,
-            OutcomeNames = market.MarketType == MarketType.MultiOutcome 
-                ? market.Outcomes?.Select(o => o.Name).ToList() 
+            OutcomeNames = market.MarketType == MarketType.MultiOutcome
+                ? market.Outcomes?.Select(o => o.Name).ToList()
                 : null
         };
 
@@ -241,11 +167,7 @@ public class MarketService
     // Get market with outcomes loaded
     public async Task<Market?> GetMarketWithOutcomesAsync(int marketId)
     {
-        return await _context.Markets
-            .Include(m => m.Outcomes.OrderBy(o => o.DisplayOrder))
-            .Include(m => m.Orders.OrderByDescending(o => o.Timestamp).Take(20))
-                .ThenInclude(o => o.User)
-            .FirstOrDefaultAsync(m => m.Id == marketId);
+        return await _queryDispatcher.ExecuteAsync<GetMarketWithOutcomesQuery, Market?>(new GetMarketWithOutcomesQuery(marketId));
     }
 
     // Get current prices for all outcomes in a multi-outcome market
@@ -324,49 +246,5 @@ public class MarketService
 
         var result = await _commandDispatcher.ExecuteAsync<PlaceMultiOutcomeSellOrderCommand, CommandResult>(command);
         return (result.Success, result.Message);
-    }
-
-    // Update user outcome position
-    private async Task UpdateOutcomePositionAsync(int userId, int outcomeId, decimal shares, decimal amount, bool isBuy)
-    {
-        var position = await _context.OutcomePositions
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.MarketOutcomeId == outcomeId);
-
-        if (position == null)
-        {
-            if (!isBuy) return; // Can't sell if no position exists
-
-            // Create new position
-            position = new OutcomePosition
-            {
-                UserId = userId,
-                MarketOutcomeId = outcomeId,
-                Shares = shares,
-                AveragePrice = amount / shares,
-                TotalInvested = amount,
-                LastUpdated = DateTime.UtcNow
-            };
-            _context.OutcomePositions.Add(position);
-        }
-        else
-        {
-            if (isBuy)
-            {
-                // Add to position
-                position.TotalInvested += amount;
-                position.Shares += shares;
-                position.AveragePrice = position.TotalInvested / position.Shares;
-            }
-            else
-            {
-                // Reduce position
-                decimal percentSold = shares / position.Shares;
-                position.Shares -= shares;
-                position.TotalInvested -= position.TotalInvested * percentSold;
-                // Average price stays the same
-            }
-
-            position.LastUpdated = DateTime.UtcNow;
-        }
     }
 }

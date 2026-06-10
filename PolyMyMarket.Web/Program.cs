@@ -6,6 +6,7 @@ using PolyMyMarket.Web.Services;
 using PolyMyMarket.Command.Common;
 using PolyMyMarket.Command.Market;
 using PolyMyMarket.Command.User;
+using MediatR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,11 +29,15 @@ builder.Services.AddDbContext<MarketContext>(options =>
     //options.UseInMemoryDatabase("PolyMyMarketDb");
 });
 
+// Add MediatR for CQRS queries
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(PolyMyMarket.Querie.Queries.User.GetUserByIdQuery).Assembly));
+
 // Add application services
 builder.Services.AddScoped<MarketService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<UserSessionService>();
 builder.Services.AddScoped<CommandDispatcher>();
+builder.Services.AddScoped<QueryDispatcher>();
 
 // Register command handlers - Market
 builder.Services.AddScoped<ICommandHandler<CreateMarketCommand, CommandResult<int>>, CreateMarketCommandHandler>();

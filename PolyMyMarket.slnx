@@ -2,5 +2,6 @@
   <Project Path="PolyMyMarket.Command/PolyMyMarket.Command.csproj" Id="90189167-347c-464f-bfc8-5f0f323605ef" />
   <Project Path="PolyMyMarket.Context/PolyMyMarket.Context.csproj" Id="d6dfb554-389a-4bed-b2d4-9fa859293a77" />
   <Project Path="PolyMyMarket.Models/PolyMyMarket.Models.csproj" Id="ddb92a05-e70f-47df-963d-e8cc3424a7f5" />
+  <Project Path="PolyMyMarket.Querie/PolyMyMarket.Querie.csproj" Id="e1234567-abcd-4f5e-bfc8-5f0f323605ab" />
   <Project Path="PolyMyMarket.Web/PolyMyMarket.Web.csproj" />
 </Solution>
